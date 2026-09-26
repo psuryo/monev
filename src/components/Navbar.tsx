@@ -1,0 +1,81 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { usePathname } from 'next/navigation';
+import { PlusCircle, FileText, LayoutDashboard, Printer } from 'lucide-react';
+import { DbStatusBadge } from './DbStatusBadge';
+
+export function Navbar({ isDbConnected = false }: { isDbConnected?: boolean }) {
+  const pathname = usePathname();
+
+  return (
+    <header className="no-print sticky top-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-xs">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          
+          {/* Logo & Brand */}
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative w-10 h-10 transition-transform group-hover:scale-105">
+              <Image 
+                src="/ukwms-logo.svg" 
+                alt="Logo UKWMS" 
+                width={40} 
+                height={40} 
+                className="w-full h-full object-contain"
+                priority
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-900 dark:text-white text-base leading-tight">
+                  SIMONEV PERWALIAN
+                </span>
+                <span className="text-[10px] bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold px-2 py-0.5 rounded-md">
+                  FT UKWMS
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight">
+                Fakultas Teknik • Univ. Katolik Widya Mandala Surabaya
+              </p>
+            </div>
+          </Link>
+
+          {/* Navigation Links */}
+          <nav className="hidden md:flex items-center gap-1">
+            <Link
+              href="/"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pathname === '/'
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Dashboard
+            </Link>
+
+            <Link
+              href="/monev/new"
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pathname === '/monev/new'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300'
+              }`}
+            >
+              <PlusCircle className="w-4 h-4" />
+              Buat Form Monev
+            </Link>
+          </nav>
+
+          {/* Right Status */}
+          <div className="flex items-center gap-3">
+            <DbStatusBadge isConnected={isDbConnected} />
+          </div>
+
+        </div>
+      </div>
+    </header>
+  );
+}
