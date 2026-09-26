@@ -1,5 +1,5 @@
 export type SemesterType = 'GASAL' | 'GENAP';
-export type JenisPertemuanType = 'SEBELUM_UTS_UAS' | 'KHS' | 'PRA_KRS';
+export type JenisPertemuanType = 'PRA_KRS' | 'SEBELUM_UTS' | 'SEBELUM_UAS' | 'KHS' | 'SEBELUM_UTS_UAS';
 export type FormStatusType = 'DRAFT' | 'SUBMITTED' | 'VERIFIED';
 
 export interface Prodi {
@@ -48,6 +48,9 @@ export interface MonevTemuanItem {
   id?: string;
   nomor: number;
   hasil_temuan: string;
+  mahasiswa_id?: string | null; // null or empty string means GLOBAL / General finding
+  mahasiswa_nama?: string | null;
+  mahasiswa_nrp?: string | null;
 }
 
 export interface MonevPraKrsItem {

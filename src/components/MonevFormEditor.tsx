@@ -15,7 +15,11 @@ import {
   GraduationCap,
   Calendar,
   FileCheck2,
-  AlertCircle
+  AlertCircle,
+  Globe,
+  User,
+  Filter,
+  Layers
 } from 'lucide-react';
 import { MonevFormData, Prodi, Dosen, Mahasiswa, TahunAkademik } from '@/types/monev';
 import { MonevPrintLayout } from './MonevPrintLayout';
@@ -36,11 +40,12 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
   const [tahunAkademiks, setTahunAkademiks] = useState<TahunAkademik[]>([]);
   const [loadingMaster, setLoadingMaster] = useState(true);
 
-  // Active View Mode
+  // Active View Mode & Filters
   const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedTemuanFilter, setSelectedTemuanFilter] = useState<string>('ALL');
 
   // Form State
   const [formData, setFormData] = useState<MonevFormData>({
@@ -67,14 +72,19 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
       ? initialData.attendees 
       : [{ mahasiswa_id: '', nrp: '', nama: '', urutan: 1 }],
     temuan: initialData?.temuan && initialData.temuan.length > 0
-      ? initialData.temuan
+      ? initialData.temuan.map(t => ({
+          ...t,
+          mahasiswa_id: t.mahasiswa_id || null,
+          mahasiswa_nama: t.mahasiswa_nama || null,
+          mahasiswa_nrp: t.mahasiswa_nrp || null,
+        }))
       : [
-          { nomor: 1, hasil_temuan: '' },
-          { nomor: 2, hasil_temuan: '' },
-          { nomor: 3, hasil_temuan: '' },
-          { nomor: 4, hasil_temuan: '' },
-          { nomor: 5, hasil_temuan: '' },
-          { nomor: 6, hasil_temuan: '' },
+          { nomor: 1, hasil_temuan: '', mahasiswa_id: null, mahasiswa_nama: null, mahasiswa_nrp: null },
+          { nomor: 2, hasil_temuan: '', mahasiswa_id: null, mahasiswa_nama: null, mahasiswa_nrp: null },
+          { nomor: 3, hasil_temuan: '', mahasiswa_id: null, mahasiswa_nama: null, mahasiswa_nrp: null },
+          { nomor: 4, hasil_temuan: '', mahasiswa_id: null, mahasiswa_nama: null, mahasiswa_nrp: null },
+          { nomor: 5, hasil_temuan: '', mahasiswa_id: null, mahasiswa_nama: null, mahasiswa_nrp: null },
+          { nomor: 6, hasil_temuan: '', mahasiswa_id: null, mahasiswa_nama: null, mahasiswa_nrp: null },
         ],
     pra_krs: initialData?.pra_krs && initialData.pra_krs.length > 0
       ? initialData.pra_krs
@@ -255,10 +265,25 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
         };
       }
 
+      // Also sync any temuan that were tied to the previous attendee ID
+      const oldId = prev.attendees[index]?.mahasiswa_id;
+      const updatedTemuan = prev.temuan.map(t => {
+        if (oldId && t.mahasiswa_id === oldId) {
+          return {
+            ...t,
+            mahasiswa_id: mahasiswaId,
+            mahasiswa_nama: m?.nama || '',
+            mahasiswa_nrp: m?.nrp || ''
+          };
+        }
+        return t;
+      });
+
       return {
         ...prev,
         attendees: updatedAttendees,
-        pra_krs: updatedPraKrs
+        pra_krs: updatedPraKrs,
+        temuan: updatedTemuan
       };
     });
   };
@@ -266,10 +291,11 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
   const updateCustomAttendeeName = (index: number, field: 'nama' | 'nrp', value: string) => {
     setFormData(prev => {
       const updated = [...prev.attendees];
+      const customId = updated[index].mahasiswa_id || `custom-${index}`;
       updated[index] = {
         ...updated[index],
         [field]: value,
-        mahasiswa_id: updated[index].mahasiswa_id || `custom-${index}`
+        mahasiswa_id: customId
       };
 
       // Sync pra-krs
@@ -281,15 +307,28 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
         };
       }
 
+      // Sync temuan
+      const updatedTemuan = prev.temuan.map(t => {
+        if (t.mahasiswa_id === customId) {
+          return {
+            ...t,
+            mahasiswa_nama: field === 'nama' ? value : t.mahasiswa_nama,
+            mahasiswa_nrp: field === 'nrp' ? value : t.mahasiswa_nrp
+          };
+        }
+        return t;
+      });
+
       return {
         ...prev,
         attendees: updated,
-        pra_krs: updatedPraKrs
+        pra_krs: updatedPraKrs,
+        temuan: updatedTemuan
       };
     });
   };
 
-  // Temuan Handler
+  // Temuan Handlers
   const updateTemuan = (index: number, text: string) => {
     setFormData(prev => {
       const updated = [...prev.temuan];
@@ -297,6 +336,61 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
         ...updated[index],
         hasil_temuan: text
       };
+      return { ...prev, temuan: updated };
+    });
+  };
+
+  const updateTemuanTarget = (index: number, targetValue: string) => {
+    setFormData(prev => {
+      const updated = [...prev.temuan];
+      if (!targetValue || targetValue === 'GLOBAL') {
+        updated[index] = {
+          ...updated[index],
+          mahasiswa_id: null,
+          mahasiswa_nama: null,
+          mahasiswa_nrp: null,
+        };
+      } else {
+        // Find in attendees first
+        const att = prev.attendees.find(a => (a.mahasiswa_id === targetValue || a.id === targetValue));
+        if (att && att.nama) {
+          updated[index] = {
+            ...updated[index],
+            mahasiswa_id: att.mahasiswa_id || targetValue,
+            mahasiswa_nama: att.nama,
+            mahasiswa_nrp: att.nrp || null,
+          };
+        } else {
+          // Find in master mahasiswas
+          const m = mahasiswas.find(item => item.id === targetValue);
+          updated[index] = {
+            ...updated[index],
+            mahasiswa_id: targetValue,
+            mahasiswa_nama: m?.nama || null,
+            mahasiswa_nrp: m?.nrp || null,
+          };
+        }
+      }
+      return { ...prev, temuan: updated };
+    });
+  };
+
+  const addTemuanRow = () => {
+    setFormData(prev => ({
+      ...prev,
+      temuan: [
+        ...prev.temuan,
+        { nomor: prev.temuan.length + 1, hasil_temuan: '', mahasiswa_id: null, mahasiswa_nama: null, mahasiswa_nrp: null }
+      ]
+    }));
+  };
+
+  const removeTemuanRow = (index: number) => {
+    setFormData(prev => {
+      const updated = prev.temuan.filter((_, i) => i !== index).map((t, i) => ({
+        ...t,
+        nomor: i + 1
+      }));
       return { ...prev, temuan: updated };
     });
   };
@@ -341,12 +435,12 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
       ];
 
       const sampleTemuan = [
-        { nomor: 1, hasil_temuan: 'Mahasiswa berkonsultasi mengenai rencana pengambilan SKS semester depan dan syarat kelulusan.' },
-        { nomor: 2, hasil_temuan: 'Disarankan untuk memprogram mata kuliah prasyarat terlebih dahulu sebelum MK pilihan peminatan.' },
-        { nomor: 3, hasil_temuan: 'Mahasiswa termotivasi untuk aktif dalam kegiatan lomba PKM dan sertifikasi kompetensi.' },
-        { nomor: 4, hasil_temuan: 'Evaluasi absensi kuliah semester lalu dalam batas aman di atas 80%.' },
-        { nomor: 5, hasil_temuan: '' },
-        { nomor: 6, hasil_temuan: '' },
+        { nomor: 1, hasil_temuan: 'Mahasiswa berkonsultasi mengenai rencana pengambilan SKS semester depan dan syarat kelulusan.', mahasiswa_id: mahasiswas[0].id, mahasiswa_nama: mahasiswas[0].nama, mahasiswa_nrp: mahasiswas[0].nrp },
+        { nomor: 2, hasil_temuan: 'Disarankan untuk memprogram mata kuliah prasyarat terlebih dahulu sebelum MK pilihan peminatan.', mahasiswa_id: mahasiswas[1].id, mahasiswa_nama: mahasiswas[1].nama, mahasiswa_nrp: mahasiswas[1].nrp },
+        { nomor: 3, hasil_temuan: 'Mahasiswa termotivasi untuk aktif dalam kegiatan lomba PKM dan sertifikasi kompetensi.', mahasiswa_id: mahasiswas[2].id, mahasiswa_nama: mahasiswas[2].nama, mahasiswa_nrp: mahasiswas[2].nrp },
+        { nomor: 4, hasil_temuan: 'Evaluasi absensi kuliah semester lalu dalam batas aman di atas 80% untuk seluruh peserta.', mahasiswa_id: null, mahasiswa_nama: null, mahasiswa_nrp: null },
+        { nomor: 5, hasil_temuan: 'Disepakati jadwal monitoring kemajuan sebelum UTS di minggu ke-5 perkuliahan.', mahasiswa_id: null, mahasiswa_nama: null, mahasiswa_nrp: null },
+        { nomor: 6, hasil_temuan: '', mahasiswa_id: null, mahasiswa_nama: null, mahasiswa_nrp: null },
       ];
 
       setFormData(prev => ({
@@ -584,11 +678,12 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                   Tahap / Jenis Pertemuan Monev <span className="text-red-500">*</span>
                 </label>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
-                    { id: 'SEBELUM_UTS_UAS', label: `Sebelum UTS / UAS Semester ${formData.semester || 'Gasal'} ${formData.tahun_ajaran || '2024/2025'}` },
-                    { id: 'KHS', label: `KHS Semester ${formData.semester || 'Gasal'} ${formData.tahun_ajaran || '2024/2025'}` },
-                    { id: 'PRA_KRS', label: `Pra KRS Semester ${formData.semester || 'Gasal'} ${formData.tahun_ajaran || '2024/2025'}` }
+                    { id: 'PRA_KRS', label: `Pra KRS Semester ${formData.semester || 'Gasal'} ${formData.tahun_ajaran || '2026/2027'}` },
+                    { id: 'SEBELUM_UTS', label: `Sebelum UTS Semester ${formData.semester || 'Gasal'} ${formData.tahun_ajaran || '2026/2027'}` },
+                    { id: 'SEBELUM_UAS', label: `Sebelum UAS Semester ${formData.semester || 'Gasal'} ${formData.tahun_ajaran || '2026/2027'}` },
+                    { id: 'KHS', label: `KHS Semester ${formData.semester || 'Gasal'} ${formData.tahun_ajaran || '2026/2027'}` },
                   ].map(option => (
                     <label
                       key={option.id}
@@ -699,26 +794,178 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
               </div>
             </div>
 
-            {/* Section 3: Temuan Hasil Pertemuan */}
+            {/* Section 3: Temuan Hasil Pertemuan (Relasi Mahasiswa & Global) */}
             <div className="bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-5">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2">
-                3. Temuan Hasil Pertemuan Mahasiswa-Wali Studi (Catatan Bimbingan)
-              </h2>
-              <p className="text-xs text-slate-500 mb-4">Isi poin-poin permasalahan, saran perbaikan, atau catatan bimbingan akademik.</p>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-blue-600" />
+                    3. Temuan Hasil Pertemuan Mahasiswa-Wali Studi (Catatan Bimbingan)
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Hubungkan temuan ke mahasiswa tertentu untuk memudahkan penelusuran (recall), atau pilih <span className="font-semibold text-blue-600 dark:text-blue-400">Umum / Global</span> untuk catatan kelompok.
+                  </p>
+                </div>
 
-              <div className="space-y-2.5">
-                {formData.temuan.map((t, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <span className="w-6 text-center text-xs font-bold text-slate-400">{idx + 1}.</span>
-                    <input
-                      type="text"
-                      placeholder={`Hasil temuan pertemuan #${idx + 1}...`}
-                      value={t.hasil_temuan}
-                      onChange={(e) => updateTemuan(idx, e.target.value)}
-                      className="grow text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                ))}
+                <button
+                  type="button"
+                  onClick={addTemuanRow}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 font-medium flex items-center gap-1 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Tambah Temuan
+                </button>
+              </div>
+
+              {/* Recall & Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 mb-4 text-xs">
+                <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mr-1">
+                  <Filter className="w-3 h-3" /> Filter Recall:
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedTemuanFilter('ALL')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                    selectedTemuanFilter === 'ALL'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  Semua ({formData.temuan.filter(t => t.hasil_temuan.trim() !== '').length})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedTemuanFilter('GLOBAL')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                    selectedTemuanFilter === 'GLOBAL'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Globe className="w-3 h-3" /> Global ({formData.temuan.filter(t => !t.mahasiswa_id && t.hasil_temuan.trim() !== '').length})
+                </button>
+
+                {formData.attendees.filter(a => a.nama || a.mahasiswa_id).map((att, aIdx) => {
+                  const attKey = att.mahasiswa_id || `att-${aIdx}`;
+                  const count = formData.temuan.filter(t => t.mahasiswa_id === att.mahasiswa_id && t.hasil_temuan.trim() !== '').length;
+                  return (
+                    <button
+                      key={aIdx}
+                      type="button"
+                      onClick={() => setSelectedTemuanFilter(attKey)}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                        selectedTemuanFilter === attKey
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <User className="w-3 h-3" /> {att.nama || `Peserta #${aIdx + 1}`} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Temuan Rows */}
+              <div className="space-y-3">
+                {formData.temuan.map((t, idx) => {
+                  const isFilteredOut = selectedTemuanFilter !== 'ALL' && (
+                    selectedTemuanFilter === 'GLOBAL'
+                      ? Boolean(t.mahasiswa_id)
+                      : t.mahasiswa_id !== selectedTemuanFilter
+                  );
+
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`p-3 rounded-xl border transition-all ${
+                        isFilteredOut 
+                          ? 'opacity-40 bg-slate-50/50 dark:bg-slate-900/30 border-dashed border-slate-300 dark:border-slate-800' 
+                          : t.mahasiswa_id 
+                          ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-800/50' 
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold flex items-center justify-center">
+                            {idx + 1}
+                          </span>
+
+                          {/* Target Type Selector */}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-slate-500 font-medium">Kategori / Target:</span>
+                            <select
+                              value={t.mahasiswa_id || 'GLOBAL'}
+                              onChange={(e) => updateTemuanTarget(idx, e.target.value)}
+                              className="text-xs rounded-lg border border-slate-300 dark:border-slate-700 py-1 px-2.5 bg-white dark:bg-slate-950 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="GLOBAL">🌐 Umum / Global (Semua Mahasiswa)</option>
+                              
+                              {formData.attendees.some(a => a.mahasiswa_id || a.nama) && (
+                                <optgroup label="Peserta Perwalian (Form Ini)">
+                                  {formData.attendees.map((att, aIdx) => (
+                                    <option key={aIdx} value={att.mahasiswa_id || `custom-${aIdx}`}>
+                                      👤 {att.nrp ? `[${att.nrp}] ` : ''}{att.nama || `Peserta #${aIdx + 1}`}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+
+                              {mahasiswas.length > 0 && (
+                                <optgroup label="Daftar Mahasiswa Bimbingan Lainnya">
+                                  {mahasiswas
+                                    .filter(m => !formData.attendees.some(a => a.mahasiswa_id === m.id))
+                                    .map(m => (
+                                      <option key={m.id} value={m.id}>
+                                        👤 [{m.nrp}] {m.nama}
+                                      </option>
+                                    ))
+                                  }
+                                </optgroup>
+                              )}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Status Badge & Delete Action */}
+                        <div className="flex items-center gap-2">
+                          {t.mahasiswa_id ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                              <User className="w-3 h-3" /> Mahasiswa: {t.mahasiswa_nama || t.mahasiswa_nrp || 'Spesifik'}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
+                              <Globe className="w-3 h-3" /> Catatan Umum
+                            </span>
+                          )}
+
+                          {formData.temuan.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeTemuanRow(idx)}
+                              className="p-1 text-slate-400 hover:text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                              title="Hapus baris temuan ini"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Text Input */}
+                      <textarea
+                        rows={2}
+                        placeholder={t.mahasiswa_nama 
+                          ? `Catatan bimbingan khusus untuk ${t.mahasiswa_nama}: permasalahan akademik, saran KRS/IPS, PK2, atau tindak lanjut...` 
+                          : `Catatan temuan umum / kelompok: kebijakan prodi, evaluasi perkuliahan bersama, atau kesepakatan umum...`}
+                        value={t.hasil_temuan}
+                        onChange={(e) => updateTemuan(idx, e.target.value)}
+                        className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all resize-y"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

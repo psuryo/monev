@@ -347,10 +347,11 @@ export async function getAllMonevForms(): Promise<MonevFormData[]> {
           ORDER BY a.urutan ASC
         `;
         const temuan = await sql`
-          SELECT id, nomor, hasil_temuan
-          FROM monev_temuan
-          WHERE monev_form_id = ${form.id}
-          ORDER BY nomor ASC
+          SELECT t.id, t.nomor, t.hasil_temuan, t.mahasiswa_id, m.nama as mahasiswa_nama, m.nrp as mahasiswa_nrp
+          FROM monev_temuan t
+          LEFT JOIN mahasiswa m ON t.mahasiswa_id = m.id
+          WHERE t.monev_form_id = ${form.id}
+          ORDER BY t.nomor ASC
         `;
         const praKrs = await sql`
           SELECT pk.id, pk.mahasiswa_id, m.nrp, m.nama, pk.ips_sebelumnya, pk.mk_nilai_d, pk.total_sks_pilihan, pk.perolehan_pk2
@@ -419,10 +420,11 @@ export async function getMonevFormById(id: string): Promise<MonevFormData | null
       ORDER BY a.urutan ASC
     `;
     const temuan = await sql`
-      SELECT id, nomor, hasil_temuan
-      FROM monev_temuan
-      WHERE monev_form_id = ${id}
-      ORDER BY nomor ASC
+      SELECT t.id, t.nomor, t.hasil_temuan, t.mahasiswa_id, m.nama as mahasiswa_nama, m.nrp as mahasiswa_nrp
+      FROM monev_temuan t
+      LEFT JOIN mahasiswa m ON t.mahasiswa_id = m.id
+      WHERE t.monev_form_id = ${id}
+      ORDER BY t.nomor ASC
     `;
     const praKrs = await sql`
       SELECT pk.id, pk.mahasiswa_id, m.nrp, m.nama, pk.ips_sebelumnya, pk.mk_nilai_d, pk.total_sks_pilihan, pk.perolehan_pk2
@@ -515,7 +517,7 @@ export async function saveMonevForm(data: MonevFormData): Promise<MonevFormData>
     const isNew = !data.id || !isValidUuid(data.id);
     const safeTanggalTerbit = formatDateForDb(data.tanggal_terbit, '2020-03-01');
     const safeTanggalPertemuan = formatDateForDb(data.tanggal_pertemuan, new Date().toISOString().split('T')[0]);
-    const safeJenisPertemuan = (['SEBELUM_UTS_UAS', 'KHS', 'PRA_KRS'].includes(data.jenis_pertemuan) ? data.jenis_pertemuan : 'PRA_KRS');
+    const safeJenisPertemuan = (['PRA_KRS', 'SEBELUM_UTS', 'SEBELUM_UAS', 'KHS', 'SEBELUM_UTS_UAS'].includes(data.jenis_pertemuan) ? data.jenis_pertemuan : 'PRA_KRS');
     const safeStatus = (['DRAFT', 'SUBMITTED', 'VERIFIED'].includes(data.status) ? data.status : 'SUBMITTED');
 
     let currentFormId: string;
@@ -568,7 +570,7 @@ export async function saveMonevForm(data: MonevFormData): Promise<MonevFormData>
     await sql`DELETE FROM monev_temuan WHERE monev_form_id = ${currentFormId}`;
     await sql`DELETE FROM monev_pra_krs WHERE monev_form_id = ${currentFormId}`;
 
-    // Map resolved student IDs by index/NRP for synchronizing pra_krs
+    // Map resolved student IDs by index/NRP for synchronizing pra_krs and temuan
     const attendeeIdMap: { [key: number]: string } = {};
 
     // 3. Insert Attendees
@@ -591,9 +593,23 @@ export async function saveMonevForm(data: MonevFormData): Promise<MonevFormData>
       for (let i = 0; i < data.temuan.length; i++) {
         const tem = data.temuan[i];
         if (tem.hasil_temuan && tem.hasil_temuan.trim() !== '') {
+          let targetMhsId: string | null = null;
+          if (tem.mahasiswa_id && tem.mahasiswa_id !== 'GLOBAL') {
+            if (isValidUuid(tem.mahasiswa_id)) {
+              targetMhsId = tem.mahasiswa_id;
+            } else {
+              targetMhsId = await resolveMahasiswaRecord(
+                sql, 
+                { mahasiswa_id: tem.mahasiswa_id, nrp: tem.mahasiswa_nrp || undefined, nama: tem.mahasiswa_nama || undefined }, 
+                data.prodi_id, 
+                data.dosen_id
+              );
+            }
+          }
+
           await sql`
-            INSERT INTO monev_temuan (monev_form_id, nomor, hasil_temuan)
-            VALUES (${currentFormId}, ${tem.nomor || i + 1}, ${tem.hasil_temuan.trim()})
+            INSERT INTO monev_temuan (monev_form_id, nomor, hasil_temuan, mahasiswa_id)
+            VALUES (${currentFormId}, ${tem.nomor || i + 1}, ${tem.hasil_temuan.trim()}, ${targetMhsId})
           `;
         }
       }

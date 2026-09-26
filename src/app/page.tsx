@@ -202,8 +202,9 @@ export default function DashboardPage() {
             >
               <option value="ALL">Semua Periode Monev</option>
               <option value="PRA_KRS">Pra KRS</option>
+              <option value="SEBELUM_UTS">Sebelum UTS</option>
+              <option value="SEBELUM_UAS">Sebelum UAS</option>
               <option value="KHS">KHS</option>
-              <option value="SEBELUM_UTS_UAS">Sebelum UTS / UAS</option>
             </select>
           </div>
 
@@ -283,11 +284,23 @@ export default function DashboardPage() {
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-semibold text-[11px] ${
                           form.jenis_pertemuan === 'PRA_KRS'
                             ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                            : form.jenis_pertemuan === 'SEBELUM_UTS'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                            : form.jenis_pertemuan === 'SEBELUM_UAS'
+                            ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300'
                             : form.jenis_pertemuan === 'KHS'
                             ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300'
                             : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
                         }`}>
-                          {form.jenis_pertemuan === 'PRA_KRS' ? 'Pra KRS' : form.jenis_pertemuan === 'KHS' ? 'KHS' : 'Sebelum UTS/UAS'}
+                          {form.jenis_pertemuan === 'PRA_KRS' 
+                            ? 'Pra KRS' 
+                            : form.jenis_pertemuan === 'SEBELUM_UTS'
+                            ? 'Sebelum UTS'
+                            : form.jenis_pertemuan === 'SEBELUM_UAS'
+                            ? 'Sebelum UAS'
+                            : form.jenis_pertemuan === 'KHS' 
+                            ? 'KHS' 
+                            : 'Sebelum UTS / UAS'}
                         </span>
                         <div className="text-[10px] text-slate-500 mt-0.5">
                           Semester {form.semester} {form.tahun_ajaran}

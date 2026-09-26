@@ -23,10 +23,19 @@ export function MonevPrintLayout({ data }: MonevPrintLayoutProps) {
   // Helper to format struck-through or active Prodi text
   const currentProdiName = (data.prodi_nama || '').toLowerCase();
 
-  // 6 finding rows default
-  const findingsRows = Array.from({ length: 6 }, (_, i) => {
-    const found = data.temuan?.find(t => t.nomor === i + 1);
-    return found ? found.hasil_temuan : '';
+  // 6 finding rows default (with student tag if connected to specific mahasiswa)
+  const findingsRows = Array.from({ length: Math.max(6, data.temuan?.length || 0) }, (_, i) => {
+    const found = data.temuan?.find(t => t.nomor === i + 1) || data.temuan?.[i];
+    if (!found || !found.hasil_temuan) {
+      return { text: '', studentLabel: null };
+    }
+    const studentLabel = found.mahasiswa_nama 
+      ? `[${found.mahasiswa_nama}${found.mahasiswa_nrp ? ` - ${found.mahasiswa_nrp}` : ''}]: ` 
+      : null;
+    return {
+      text: found.hasil_temuan,
+      studentLabel
+    };
   });
 
   // Pra-KRS rows (minimum 3 rows for aesthetic layout)
@@ -198,39 +207,50 @@ export function MonevPrintLayout({ data }: MonevPrintLayoutProps) {
 
           {/* Row 3: Periode Pertemuan */}
           <tr>
-            <td className="text-center font-normal">3.</td>
+            <td className="text-center font-normal align-top">3.</td>
             <td className="font-normal align-top">Periode Pertemuan: <sup>(*)</sup></td>
             <td colSpan={2} className="space-y-1 py-1.5 text-[10.5px]">
-              {/* Option 1 */}
+              {/* Option 1: Sebelum UTS */}
               <div className="flex items-center gap-2">
                 <span className="inline-block w-3.5 h-3.5 border border-black text-center leading-[12px] text-[10px] font-bold">
-                  {data.jenis_pertemuan === 'SEBELUM_UTS_UAS' ? '✓' : ''}
+                  {data.jenis_pertemuan === 'SEBELUM_UTS' || data.jenis_pertemuan === 'SEBELUM_UTS_UAS' ? '✓' : ''}
                 </span>
                 <span>
-                  Sebelum UTS / UAS Semester {data.semester === 'GENAP' ? 'Genap' : 'Gasal'}{' '}
-                  {data.tahun_ajaran || '2020/2021'}
+                  Sebelum UTS Semester {data.semester === 'GENAP' ? 'Genap' : 'Gasal'}{' '}
+                  {data.jenis_pertemuan === 'SEBELUM_UTS' ? (data.tahun_ajaran || '2026/2027') : '......../........'}
                 </span>
               </div>
 
-              {/* Option 2 */}
+              {/* Option 2: Sebelum UAS */}
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-3.5 h-3.5 border border-black text-center leading-[12px] text-[10px] font-bold">
+                  {data.jenis_pertemuan === 'SEBELUM_UAS' ? '✓' : ''}
+                </span>
+                <span>
+                  Sebelum UAS Semester {data.semester === 'GENAP' ? 'Genap' : 'Gasal'}{' '}
+                  {data.jenis_pertemuan === 'SEBELUM_UAS' ? (data.tahun_ajaran || '2026/2027') : '......../........'}
+                </span>
+              </div>
+
+              {/* Option 3: KHS */}
               <div className="flex items-center gap-2">
                 <span className="inline-block w-3.5 h-3.5 border border-black text-center leading-[12px] text-[10px] font-bold">
                   {data.jenis_pertemuan === 'KHS' ? '✓' : ''}
                 </span>
                 <span>
                   KHS Semester {data.semester === 'GENAP' ? 'Genap' : 'Gasal'}{' '}
-                  {data.jenis_pertemuan === 'KHS' ? data.tahun_ajaran : '......../........'}
+                  {data.jenis_pertemuan === 'KHS' ? (data.tahun_ajaran || '2026/2027') : '......../........'}
                 </span>
               </div>
 
-              {/* Option 3 */}
+              {/* Option 4: Pra KRS */}
               <div className="flex items-center gap-2">
                 <span className="inline-block w-3.5 h-3.5 border border-black text-center leading-[12px] text-[10px] font-bold">
                   {data.jenis_pertemuan === 'PRA_KRS' ? '✓' : ''}
                 </span>
                 <span>
                   Pra KRS Semester {data.semester === 'GENAP' ? 'Genap' : 'Gasal'}{' '}
-                  {data.jenis_pertemuan === 'PRA_KRS' ? data.tahun_ajaran : '......../........'}
+                  {data.jenis_pertemuan === 'PRA_KRS' ? (data.tahun_ajaran || '2026/2027') : '......../........'}
                 </span>
               </div>
             </td>
@@ -238,7 +258,7 @@ export function MonevPrintLayout({ data }: MonevPrintLayoutProps) {
 
           {/* Row 4: Daftar Mahasiswa */}
           <tr>
-            <td className="text-center font-normal align-top">3.</td>
+            <td className="text-center font-normal align-top">4.</td>
             <td className="font-normal align-top">
               Nama/NRP Mahasiswa<br />dibawah perwalian:
             </td>
@@ -287,10 +307,15 @@ export function MonevPrintLayout({ data }: MonevPrintLayoutProps) {
           </tr>
         </thead>
         <tbody>
-          {findingsRows.map((temuan, idx) => (
+          {findingsRows.map((item, idx) => (
             <tr key={idx} style={{ height: '26px' }}>
               <td className="text-center font-normal">{idx + 1}.</td>
-              <td className="px-2 font-normal text-[10.5px]">{temuan}</td>
+              <td className="px-2 font-normal text-[10.5px]">
+                {item.studentLabel && (
+                  <strong className="font-bold text-black">{item.studentLabel}</strong>
+                )}
+                {item.text}
+              </td>
             </tr>
           ))}
         </tbody>
