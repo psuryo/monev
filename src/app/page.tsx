@@ -35,9 +35,10 @@ export default function DashboardPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [formsRes, prodiRes] = await Promise.all([
+      const [formsRes, prodiRes, statusRes] = await Promise.all([
         fetch('/api/monev').then(r => r.json()),
         fetch('/api/prodi').then(r => r.json()),
+        fetch('/api/db-status').then(r => r.json()).catch(() => ({ isConnected: false })),
       ]);
 
       if (formsRes.success) {
@@ -45,6 +46,9 @@ export default function DashboardPage() {
       }
       if (prodiRes.success) {
         setProdis(prodiRes.data);
+      }
+      if (statusRes.isConnected !== undefined) {
+        setIsDbConnected(Boolean(statusRes.isConnected));
       }
     } catch (err) {
       console.error('Failed to load dashboard data:', err);

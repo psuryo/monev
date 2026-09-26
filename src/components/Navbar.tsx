@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { PlusCircle, FileText, LayoutDashboard, Printer } from 'lucide-react';
 import { DbStatusBadge } from './DbStatusBadge';
 
-export function Navbar({ isDbConnected = false }: { isDbConnected?: boolean }) {
+export function Navbar({ isDbConnected }: { isDbConnected?: boolean }) {
   const pathname = usePathname();
 
   return (

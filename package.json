@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:check": "node scripts/inspect-db.js",
+    "db:test": "node scripts/test-monev-ops.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

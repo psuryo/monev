@@ -10,75 +10,39 @@ import {
   MonevPraKrsItem
 } from '@/types/monev';
 
-// In-memory fallback mock dataset (in case Neon DATABASE_URL is not yet set in .env.local)
+// In-memory fallback mock dataset (in case Neon DATABASE_URL is not reachable or not set)
 let mockProdis: Prodi[] = [
-  { id: 'p-1', kode: 'TE', nama: 'Teknik Elektro', fakultas: 'Fakultas Teknik' },
-  { id: 'p-2', kode: 'TK', nama: 'Teknik Kimia', fakultas: 'Fakultas Teknik' },
-  { id: 'p-3', kode: 'TI', nama: 'Teknik Industri', fakultas: 'Fakultas Teknik' },
-  { id: 'p-4', kode: 'RI', nama: 'Rekayasa Industri', fakultas: 'Fakultas Teknik' },
-  { id: 'p-5', kode: 'INF', nama: 'Informatika', fakultas: 'Fakultas Teknik' },
-  { id: 'p-6', kode: 'PPI', nama: 'Profesi Insinyur', fakultas: 'Fakultas Teknik' },
-  { id: 'p-7', kode: 'MTK', nama: 'Magister Teknik Kimia', fakultas: 'Fakultas Teknik' },
+  { id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', kode: 'INF', nama: 'Informatika', fakultas: 'Fakultas Teknik' },
+  { id: '05b4754f-1d8c-49c9-8b0b-4c7c8a2058f7', kode: 'TE', nama: 'Teknik Elektro', fakultas: 'Fakultas Teknik' },
+  { id: '21397864-f964-4227-a045-ecad6e837347', kode: 'TK', nama: 'Teknik Kimia', fakultas: 'Fakultas Teknik' },
+  { id: '2468a393-f047-4e99-af0e-abac0e530297', kode: 'TI', nama: 'Teknik Industri', fakultas: 'Fakultas Teknik' },
+  { id: '774fb002-6bcf-4844-9bc9-b8576f19ad26', kode: 'RI', nama: 'Rekayasa Industri', fakultas: 'Fakultas Teknik' },
+  { id: '86def56a-dc18-4a71-83ca-620a6480c648', kode: 'PPI', nama: 'Profesi Insinyur', fakultas: 'Fakultas Teknik' },
+  { id: '0f3c21eb-1df3-4f06-a49b-ce3f05961511', kode: 'MTK', nama: 'Magister Teknik Kimia', fakultas: 'Fakultas Teknik' },
 ];
 
 let mockDosens: Dosen[] = [
-  { id: 'd-1', nik: '511.01.2015', nama: 'Ir. Joan Santoso, S.Kom., M.Kom.', email: 'joan@ukwms.ac.id', prodi_id: 'p-5', prodi_nama: 'Informatika' },
-  { id: 'd-2', nik: '511.02.2010', nama: 'Dr. Ir. Hartono, S.T., M.T.', email: 'hartono@ukwms.ac.id', prodi_id: 'p-1', prodi_nama: 'Teknik Elektro' },
-  { id: 'd-3', nik: '511.03.2018', nama: 'Theresia Maria, S.T., M.Sc.', email: 'theresia@ukwms.ac.id', prodi_id: 'p-2', prodi_nama: 'Teknik Kimia' },
+  { id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', nik: '581000020', nama: 'Philipus Suryo Subandoro, S.Kom., M.Kom.', email: 'philipus@ukwms.ac.id', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika' },
 ];
 
 let mockMahasiswas: Mahasiswa[] = [
-  { id: 'm-1', nrp: '51019001', nama: 'Budi Santoso', prodi_id: 'p-5', prodi_nama: 'Informatika', dosen_wali_id: 'd-1', angkatan: 2023 },
-  { id: 'm-2', nrp: '51019002', nama: 'Siti Aminah', prodi_id: 'p-5', prodi_nama: 'Informatika', dosen_wali_id: 'd-1', angkatan: 2023 },
-  { id: 'm-3', nrp: '51019003', nama: 'Kevin Wijaya', prodi_id: 'p-5', prodi_nama: 'Informatika', dosen_wali_id: 'd-1', angkatan: 2023 },
-  { id: 'm-4', nrp: '51019004', nama: 'Anastasia Putri', prodi_id: 'p-5', prodi_nama: 'Informatika', dosen_wali_id: 'd-1', angkatan: 2022 },
-  { id: 'm-5', nrp: '52019001', nama: 'Michael Hendra', prodi_id: 'p-1', prodi_nama: 'Teknik Elektro', dosen_wali_id: 'd-2', angkatan: 2023 },
-  { id: 'm-6', nrp: '53019001', nama: 'Clara Devina', prodi_id: 'p-2', prodi_nama: 'Teknik Kimia', dosen_wali_id: 'd-3', angkatan: 2023 },
+  { id: 'b9b93427-1b75-4074-8f2b-a0c42c8f9f8e', nrp: '5803024005', nama: 'Daniel', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', dosen_wali_id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', dosen_wali_nama: 'Philipus Suryo Subandoro, S.Kom., M.Kom.', angkatan: 2023 },
+  { id: '04caa331-a5ae-4dd0-b733-6075634e08c4', nrp: '5803024006', nama: 'Nathanael Melvin Christian', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', dosen_wali_id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', dosen_wali_nama: 'Philipus Suryo Subandoro, S.Kom., M.Kom.', angkatan: 2023 },
+  { id: 'e6dfcb11-8d48-4635-a188-f81aa12bbc08', nrp: '5803024008', nama: 'Benaya Nathanael Yeroham', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', dosen_wali_id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', dosen_wali_nama: 'Philipus Suryo Subandoro, S.Kom., M.Kom.', angkatan: 2023 },
 ];
 
 let mockTahunAkademik: TahunAkademik[] = [
-  { id: 'ta-1', tahun_ajaran: '2024/2025', semester: 'GASAL', is_active: true },
-  { id: 'ta-2', tahun_ajaran: '2024/2025', semester: 'GENAP', is_active: false },
-  { id: 'ta-3', tahun_ajaran: '2023/2024', semester: 'GENAP', is_active: false },
+  { id: 'c018b39c-d376-41d5-a0a4-85be02deab2d', tahun_ajaran: '2026/2027', semester: 'GASAL', is_active: true },
+  { id: 'd1adfab4-0b24-4ee7-83fd-9c275cebce97', tahun_ajaran: '2026/2027', semester: 'GENAP', is_active: false },
+  { id: '5ce7f3ac-15c3-42b2-b036-6bc4cda30a2a', tahun_ajaran: '2025/2026', semester: 'GASAL', is_active: false },
+  { id: '13d38ad8-7478-4569-9d37-c03f629264c7', tahun_ajaran: '2025/2026', semester: 'GENAP', is_active: false },
 ];
 
-let mockMonevForms: MonevFormData[] = [
-  {
-    id: 'sample-form-1',
-    no_dokumen: '051/FORM/PDK/FT/2023',
-    tanggal_terbit: '2020-03-01',
-    revisi_ke: '02',
-    halaman: '1 dari 1',
-    dosen_id: 'd-1',
-    dosen_nama: 'Ir. Joan Santoso, S.Kom., M.Kom.',
-    dosen_nik: '511.01.2015',
-    prodi_id: 'p-5',
-    prodi_nama: 'Informatika',
-    tahun_akademik_id: 'ta-1',
-    tahun_ajaran: '2024/2025',
-    semester: 'GASAL',
-    jenis_pertemuan: 'PRA_KRS',
-    tanggal_pertemuan: '2024-09-15',
-    status: 'SUBMITTED',
-    attendees: [
-      { mahasiswa_id: 'm-1', nrp: '51019001', nama: 'Budi Santoso', urutan: 1 },
-      { mahasiswa_id: 'm-2', nrp: '51019002', nama: 'Siti Aminah', urutan: 2 },
-      { mahasiswa_id: 'm-3', nrp: '51019003', nama: 'Kevin Wijaya', urutan: 3 },
-    ],
-    temuan: [
-      { nomor: 1, hasil_temuan: 'Mahasiswa semester 3 merencanakan pengambilan MK Pemrograman Web Lanjut dan Basis Data Terdistribusi.' },
-      { nomor: 2, hasil_temuan: 'Perlu bimbingan khusus pada mata kuliah Matematika Diskrit agar tidak mengulang.' },
-      { nomor: 3, hasil_temuan: 'Mahasiswa Siti Aminah aktif dalam kepengurusan HIMA (Himpunan Mahasiswa Informatika).' },
-    ],
-    pra_krs: [
-      { mahasiswa_id: 'm-1', nrp: '51019001', nama: 'Budi Santoso', ips_sebelumnya: 3.45, mk_nilai_d: '-', total_sks_pilihan: 6, perolehan_pk2: '75 Poin' },
-      { mahasiswa_id: 'm-2', nrp: '51019002', nama: 'Siti Aminah', ips_sebelumnya: 3.80, mk_nilai_d: '-', total_sks_pilihan: 6, perolehan_pk2: '120 Poin' },
-      { mahasiswa_id: 'm-3', nrp: '51019003', nama: 'Kevin Wijaya', ips_sebelumnya: 2.75, mk_nilai_d: 'Algoritma & Struktur Data', total_sks_pilihan: 3, perolehan_pk2: '45 Poin' },
-    ],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-];
+let mockMonevForms: MonevFormData[] = [];
+
+// ==========================================
+// DB CLIENT & HELPERS
+// ==========================================
 
 export function getDbClient() {
   const dbUrl = process.env.DATABASE_URL;
@@ -94,6 +58,88 @@ export function getDbClient() {
 }
 
 export const isUsingDatabase = () => Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '');
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(str?: string | null): boolean {
+  if (!str) return false;
+  return UUID_REGEX.test(str);
+}
+
+export function formatDateForDb(dateStr?: string | null, defaultDate: string = '2020-03-01'): string {
+  if (!dateStr || typeof dateStr !== 'string' || dateStr.trim() === '') {
+    return defaultDate;
+  }
+  const clean = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    return clean;
+  }
+  if (clean.includes('T')) {
+    return clean.split('T')[0];
+  }
+  const parsed = new Date(clean);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0];
+  }
+  return defaultDate;
+}
+
+export function formatDateForClient(val: any): string {
+  if (!val) return '';
+  if (typeof val === 'string') {
+    if (val.includes('T')) return val.split('T')[0];
+    return val;
+  }
+  if (val instanceof Date) {
+    return val.toISOString().split('T')[0];
+  }
+  return String(val);
+}
+
+// ==========================================
+// STATUS CHECK
+// ==========================================
+
+export async function checkDbStatus() {
+  const sql = getDbClient();
+  if (!sql) {
+    return {
+      isConnected: false,
+      mode: 'mock',
+      message: 'DATABASE_URL tidak terkonfigurasi'
+    };
+  }
+
+  try {
+    const ping = await sql`SELECT NOW() as now, current_database() as db_name, version() as version`;
+    const [prodiRes, dosenRes, mhsRes, formRes] = await Promise.all([
+      sql`SELECT count(*)::int as cnt FROM prodi`,
+      sql`SELECT count(*)::int as cnt FROM dosen`,
+      sql`SELECT count(*)::int as cnt FROM mahasiswa`,
+      sql`SELECT count(*)::int as cnt FROM monev_forms`,
+    ]);
+
+    return {
+      isConnected: true,
+      mode: 'neon',
+      databaseName: ping[0].db_name,
+      serverTime: ping[0].now,
+      counts: {
+        prodi: prodiRes[0].cnt,
+        dosen: dosenRes[0].cnt,
+        mahasiswa: mhsRes[0].cnt,
+        monevForms: formRes[0].cnt,
+      }
+    };
+  } catch (error: any) {
+    console.error('checkDbStatus error:', error);
+    return {
+      isConnected: false,
+      mode: 'error',
+      error: error.message
+    };
+  }
+}
 
 // ==========================================
 // DATA ACCESS FUNCTIONS
@@ -130,33 +176,74 @@ export async function getDosenList(): Promise<Dosen[]> {
   }
 }
 
-export async function getMahasiswaList(dosenId?: string, prodiId?: string): Promise<Mahasiswa[]> {
+export async function createDosen(data: { nik: string; nama: string; email?: string; prodi_id: string }): Promise<Dosen> {
   const sql = getDbClient();
   if (!sql) {
+    const prodi = mockProdis.find(p => p.id === data.prodi_id);
+    const newDosen: Dosen = {
+      id: `d-${Date.now()}`,
+      nik: data.nik,
+      nama: data.nama,
+      email: data.email,
+      prodi_id: data.prodi_id,
+      prodi_nama: prodi?.nama || 'Informatika'
+    };
+    mockDosens.push(newDosen);
+    return newDosen;
+  }
+
+  const rows = await sql`
+    INSERT INTO dosen (nik, nama, email, prodi_id)
+    VALUES (${data.nik}, ${data.nama}, ${data.email || null}, ${data.prodi_id})
+    RETURNING id, nik, nama, email, prodi_id
+  `;
+  const created = rows[0];
+  const prodi = await sql`SELECT nama FROM prodi WHERE id = ${data.prodi_id}`;
+  return {
+    ...created,
+    prodi_nama: prodi[0]?.nama || ''
+  } as Dosen;
+}
+
+export async function getMahasiswaList(dosenId?: string, prodiId?: string): Promise<Mahasiswa[]> {
+  const sql = getDbClient();
+  const validDosenId = dosenId && dosenId !== 'ALL' && isValidUuid(dosenId) ? dosenId : undefined;
+  const validProdiId = prodiId && prodiId !== 'ALL' && isValidUuid(prodiId) ? prodiId : undefined;
+
+  if (!sql) {
     let res = mockMahasiswas;
-    if (dosenId) res = res.filter(m => m.dosen_wali_id === dosenId);
-    if (prodiId) res = res.filter(m => m.prodi_id === prodiId);
+    if (validDosenId) res = res.filter(m => m.dosen_wali_id === validDosenId);
+    if (validProdiId) res = res.filter(m => m.prodi_id === validProdiId);
     return res;
   }
 
   try {
     let rows;
-    if (dosenId && prodiId) {
+    if (validDosenId && validProdiId) {
       rows = await sql`
         SELECT m.id, m.nrp, m.nama, m.prodi_id, m.dosen_wali_id, m.angkatan, p.nama as prodi_nama, d.nama as dosen_wali_nama
         FROM mahasiswa m
         JOIN prodi p ON m.prodi_id = p.id
         LEFT JOIN dosen d ON m.dosen_wali_id = d.id
-        WHERE m.dosen_wali_id = ${dosenId} AND m.prodi_id = ${prodiId}
+        WHERE m.dosen_wali_id = ${validDosenId} AND m.prodi_id = ${validProdiId}
         ORDER BY m.nrp ASC
       `;
-    } else if (dosenId) {
+    } else if (validDosenId) {
       rows = await sql`
         SELECT m.id, m.nrp, m.nama, m.prodi_id, m.dosen_wali_id, m.angkatan, p.nama as prodi_nama, d.nama as dosen_wali_nama
         FROM mahasiswa m
         JOIN prodi p ON m.prodi_id = p.id
         LEFT JOIN dosen d ON m.dosen_wali_id = d.id
-        WHERE m.dosen_wali_id = ${dosenId}
+        WHERE m.dosen_wali_id = ${validDosenId}
+        ORDER BY m.nrp ASC
+      `;
+    } else if (validProdiId) {
+      rows = await sql`
+        SELECT m.id, m.nrp, m.nama, m.prodi_id, m.dosen_wali_id, m.angkatan, p.nama as prodi_nama, d.nama as dosen_wali_nama
+        FROM mahasiswa m
+        JOIN prodi p ON m.prodi_id = p.id
+        LEFT JOIN dosen d ON m.dosen_wali_id = d.id
+        WHERE m.prodi_id = ${validProdiId}
         ORDER BY m.nrp ASC
       `;
     } else {
@@ -173,6 +260,47 @@ export async function getMahasiswaList(dosenId?: string, prodiId?: string): Prom
     console.error('getMahasiswaList error:', error);
     return mockMahasiswas;
   }
+}
+
+export async function createMahasiswa(data: { nrp: string; nama: string; prodi_id: string; dosen_wali_id?: string; angkatan?: number }): Promise<Mahasiswa> {
+  const sql = getDbClient();
+  const angkatan = data.angkatan || new Date().getFullYear();
+
+  if (!sql) {
+    const prodi = mockProdis.find(p => p.id === data.prodi_id);
+    const dosen = mockDosens.find(d => d.id === data.dosen_wali_id);
+    const newMhs: Mahasiswa = {
+      id: `m-${Date.now()}`,
+      nrp: data.nrp,
+      nama: data.nama,
+      prodi_id: data.prodi_id,
+      prodi_nama: prodi?.nama || 'Informatika',
+      dosen_wali_id: data.dosen_wali_id,
+      dosen_wali_nama: dosen?.nama,
+      angkatan
+    };
+    mockMahasiswas.push(newMhs);
+    return newMhs;
+  }
+
+  const rows = await sql`
+    INSERT INTO mahasiswa (nrp, nama, prodi_id, dosen_wali_id, angkatan)
+    VALUES (${data.nrp}, ${data.nama}, ${data.prodi_id}, ${data.dosen_wali_id || null}, ${angkatan})
+    RETURNING id, nrp, nama, prodi_id, dosen_wali_id, angkatan
+  `;
+  const created = rows[0];
+  const prodi = await sql`SELECT nama FROM prodi WHERE id = ${data.prodi_id}`;
+  let dosenNama = undefined;
+  if (data.dosen_wali_id) {
+    const dosen = await sql`SELECT nama FROM dosen WHERE id = ${data.dosen_wali_id}`;
+    dosenNama = dosen[0]?.nama;
+  }
+
+  return {
+    ...created,
+    prodi_nama: prodi[0]?.nama,
+    dosen_wali_nama: dosenNama
+  } as Mahasiswa;
 }
 
 export async function getTahunAkademikList(): Promise<TahunAkademik[]> {
@@ -232,9 +360,14 @@ export async function getAllMonevForms(): Promise<MonevFormData[]> {
         `;
         return {
           ...form,
+          tanggal_terbit: formatDateForClient(form.tanggal_terbit),
+          tanggal_pertemuan: formatDateForClient(form.tanggal_pertemuan),
           attendees: attendees as MonevAttendeeItem[],
           temuan: temuan as MonevTemuanItem[],
-          pra_krs: praKrs as MonevPraKrsItem[],
+          pra_krs: praKrs.map((pk: any) => ({
+            ...pk,
+            ips_sebelumnya: pk.ips_sebelumnya !== null ? Number(pk.ips_sebelumnya) : ''
+          })) as MonevPraKrsItem[],
         };
       })
     );
@@ -249,6 +382,11 @@ export async function getAllMonevForms(): Promise<MonevFormData[]> {
 export async function getMonevFormById(id: string): Promise<MonevFormData | null> {
   const sql = getDbClient();
   if (!sql) {
+    const found = mockMonevForms.find(f => f.id === id);
+    return found || null;
+  }
+
+  if (!isValidUuid(id)) {
     const found = mockMonevForms.find(f => f.id === id);
     return found || null;
   }
@@ -295,15 +433,51 @@ export async function getMonevFormById(id: string): Promise<MonevFormData | null
 
     return {
       ...form,
+      tanggal_terbit: formatDateForClient(form.tanggal_terbit),
+      tanggal_pertemuan: formatDateForClient(form.tanggal_pertemuan),
       attendees: attendees as MonevAttendeeItem[],
       temuan: temuan as MonevTemuanItem[],
-      pra_krs: praKrs as MonevPraKrsItem[],
+      pra_krs: praKrs.map((pk: any) => ({
+        ...pk,
+        ips_sebelumnya: pk.ips_sebelumnya !== null ? Number(pk.ips_sebelumnya) : ''
+      })) as MonevPraKrsItem[],
     } as MonevFormData;
   } catch (error) {
     console.error('getMonevFormById error:', error);
     const found = mockMonevForms.find(f => f.id === id);
     return found || null;
   }
+}
+
+// Helper to resolve or create mahasiswa record dynamically
+async function resolveMahasiswaRecord(
+  sql: any,
+  item: { mahasiswa_id?: string; nrp?: string; nama?: string },
+  prodiId: string,
+  dosenId: string
+): Promise<string | null> {
+  if (item.mahasiswa_id && isValidUuid(item.mahasiswa_id)) {
+    const exists = await sql`SELECT id FROM mahasiswa WHERE id = ${item.mahasiswa_id} LIMIT 1`;
+    if (exists.length > 0) return item.mahasiswa_id;
+  }
+
+  if (item.nrp && item.nrp.trim() !== '') {
+    const cleanNrp = item.nrp.trim();
+    const existing = await sql`SELECT id FROM mahasiswa WHERE nrp = ${cleanNrp} LIMIT 1`;
+    if (existing.length > 0) {
+      return existing[0].id;
+    }
+
+    const cleanNama = item.nama && item.nama.trim() !== '' ? item.nama.trim() : `Mahasiswa (${cleanNrp})`;
+    const created = await sql`
+      INSERT INTO mahasiswa (nrp, nama, prodi_id, dosen_wali_id, angkatan)
+      VALUES (${cleanNrp}, ${cleanNama}, ${prodiId}, ${dosenId}, ${new Date().getFullYear()})
+      RETURNING id
+    `;
+    return created[0].id;
+  }
+
+  return null;
 }
 
 export async function saveMonevForm(data: MonevFormData): Promise<MonevFormData> {
@@ -322,7 +496,7 @@ export async function saveMonevForm(data: MonevFormData): Promise<MonevFormData>
       prodi_nama: prodi?.nama || 'Informatika',
       dosen_nama: dosen?.nama || 'Dosen Wali',
       dosen_nik: dosen?.nik || '-',
-      tahun_ajaran: ta?.tahun_ajaran || '2024/2025',
+      tahun_ajaran: ta?.tahun_ajaran || '2026/2027',
       semester: ta?.semester || 'GASAL',
       created_at: data.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -338,9 +512,13 @@ export async function saveMonevForm(data: MonevFormData): Promise<MonevFormData>
   }
 
   try {
-    // 1. Upsert Form Header
-    const isNew = !data.id;
-    let createdForm;
+    const isNew = !data.id || !isValidUuid(data.id);
+    const safeTanggalTerbit = formatDateForDb(data.tanggal_terbit, '2020-03-01');
+    const safeTanggalPertemuan = formatDateForDb(data.tanggal_pertemuan, new Date().toISOString().split('T')[0]);
+    const safeJenisPertemuan = (['SEBELUM_UTS_UAS', 'KHS', 'PRA_KRS'].includes(data.jenis_pertemuan) ? data.jenis_pertemuan : 'PRA_KRS');
+    const safeStatus = (['DRAFT', 'SUBMITTED', 'VERIFIED'].includes(data.status) ? data.status : 'SUBMITTED');
+
+    let currentFormId: string;
 
     if (isNew) {
       const res = await sql`
@@ -351,84 +529,100 @@ export async function saveMonevForm(data: MonevFormData): Promise<MonevFormData>
           signature_url, signed_at
         ) VALUES (
           ${data.no_dokumen || '051/FORM/PDK/FT/2023'},
-          ${data.tanggal_terbit || '2020-03-01'},
+          ${safeTanggalTerbit},
           ${data.revisi_ke || '02'},
           ${data.halaman || '1 dari 1'},
           ${data.dosen_id},
           ${data.prodi_id},
           ${data.tahun_akademik_id},
-          ${data.jenis_pertemuan},
-          ${data.tanggal_pertemuan || new Date().toISOString().split('T')[0]},
-          ${data.status || 'SUBMITTED'},
+          ${safeJenisPertemuan},
+          ${safeTanggalPertemuan},
+          ${safeStatus},
           ${data.catatan_tambahan || ''},
           ${data.signature_url || null},
           ${data.signed_at || new Date().toISOString()}
         )
         RETURNING id
       `;
-      createdForm = res[0];
+      currentFormId = res[0].id;
     } else {
+      currentFormId = data.id!;
       await sql`
         UPDATE monev_forms SET
           dosen_id = ${data.dosen_id},
           prodi_id = ${data.prodi_id},
           tahun_akademik_id = ${data.tahun_akademik_id},
-          jenis_pertemuan = ${data.jenis_pertemuan},
-          tanggal_pertemuan = ${data.tanggal_pertemuan},
-          status = ${data.status || 'SUBMITTED'},
+          jenis_pertemuan = ${safeJenisPertemuan},
+          tanggal_pertemuan = ${safeTanggalPertemuan},
+          status = ${safeStatus},
           catatan_tambahan = ${data.catatan_tambahan || ''},
           signature_url = ${data.signature_url || null},
           signed_at = ${data.signed_at || new Date().toISOString()},
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${data.id}
+        WHERE id = ${currentFormId}
       `;
-      createdForm = { id: data.id };
     }
-
-    const currentFormId = createdForm.id;
 
     // 2. Clear old sub-records & insert fresh
     await sql`DELETE FROM monev_attendees WHERE monev_form_id = ${currentFormId}`;
     await sql`DELETE FROM monev_temuan WHERE monev_form_id = ${currentFormId}`;
     await sql`DELETE FROM monev_pra_krs WHERE monev_form_id = ${currentFormId}`;
 
+    // Map resolved student IDs by index/NRP for synchronizing pra_krs
+    const attendeeIdMap: { [key: number]: string } = {};
+
     // 3. Insert Attendees
-    for (let i = 0; i < data.attendees.length; i++) {
-      const att = data.attendees[i];
-      if (att.mahasiswa_id) {
-        await sql`
-          INSERT INTO monev_attendees (monev_form_id, mahasiswa_id, urutan)
-          VALUES (${currentFormId}, ${att.mahasiswa_id}, ${att.urutan || i + 1})
-        `;
+    if (data.attendees && data.attendees.length > 0) {
+      for (let i = 0; i < data.attendees.length; i++) {
+        const att = data.attendees[i];
+        const resolvedMhsId = await resolveMahasiswaRecord(sql, att, data.prodi_id, data.dosen_id);
+        if (resolvedMhsId) {
+          attendeeIdMap[i] = resolvedMhsId;
+          await sql`
+            INSERT INTO monev_attendees (monev_form_id, mahasiswa_id, urutan)
+            VALUES (${currentFormId}, ${resolvedMhsId}, ${att.urutan || i + 1})
+          `;
+        }
       }
     }
 
     // 4. Insert Temuan
-    for (let i = 0; i < data.temuan.length; i++) {
-      const tem = data.temuan[i];
-      if (tem.hasil_temuan && tem.hasil_temuan.trim() !== '') {
-        await sql`
-          INSERT INTO monev_temuan (monev_form_id, nomor, hasil_temuan)
-          VALUES (${currentFormId}, ${tem.nomor || i + 1}, ${tem.hasil_temuan.trim()})
-        `;
+    if (data.temuan && data.temuan.length > 0) {
+      for (let i = 0; i < data.temuan.length; i++) {
+        const tem = data.temuan[i];
+        if (tem.hasil_temuan && tem.hasil_temuan.trim() !== '') {
+          await sql`
+            INSERT INTO monev_temuan (monev_form_id, nomor, hasil_temuan)
+            VALUES (${currentFormId}, ${tem.nomor || i + 1}, ${tem.hasil_temuan.trim()})
+          `;
+        }
       }
     }
 
     // 5. Insert Pra-KRS records if applicable
-    for (const pk of data.pra_krs) {
-      if (pk.mahasiswa_id) {
-        await sql`
-          INSERT INTO monev_pra_krs (
-            monev_form_id, mahasiswa_id, ips_sebelumnya, mk_nilai_d, total_sks_pilihan, perolehan_pk2
-          ) VALUES (
-            ${currentFormId},
-            ${pk.mahasiswa_id},
-            ${Number(pk.ips_sebelumnya) || 0.00},
-            ${pk.mk_nilai_d || '-'},
-            ${Number(pk.total_sks_pilihan) || 0},
-            ${pk.perolehan_pk2 || '-'}
-          )
-        `;
+    if (data.pra_krs && data.pra_krs.length > 0) {
+      for (let i = 0; i < data.pra_krs.length; i++) {
+        const pk = data.pra_krs[i];
+        let resolvedMhsId = attendeeIdMap[i];
+        if (!resolvedMhsId) {
+          resolvedMhsId = (await resolveMahasiswaRecord(sql, pk, data.prodi_id, data.dosen_id)) || '';
+        }
+
+        if (resolvedMhsId && isValidUuid(resolvedMhsId)) {
+          const ipsNum = pk.ips_sebelumnya !== '' && pk.ips_sebelumnya !== undefined ? Number(pk.ips_sebelumnya) : null;
+          await sql`
+            INSERT INTO monev_pra_krs (
+              monev_form_id, mahasiswa_id, ips_sebelumnya, mk_nilai_d, total_sks_pilihan, perolehan_pk2
+            ) VALUES (
+              ${currentFormId},
+              ${resolvedMhsId},
+              ${ipsNum},
+              ${pk.mk_nilai_d || '-'},
+              ${Number(pk.total_sks_pilihan) || 0},
+              ${pk.perolehan_pk2 || '-'}
+            )
+          `;
+        }
       }
     }
 
@@ -443,6 +637,11 @@ export async function saveMonevForm(data: MonevFormData): Promise<MonevFormData>
 export async function deleteMonevForm(id: string): Promise<boolean> {
   const sql = getDbClient();
   if (!sql) {
+    mockMonevForms = mockMonevForms.filter(f => f.id !== id);
+    return true;
+  }
+
+  if (!isValidUuid(id)) {
     mockMonevForms = mockMonevForms.filter(f => f.id !== id);
     return true;
   }
