@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import { getMonevFormById, saveMonevForm, deleteMonevForm } from '@/lib/db';
 import { MonevFormData } from '@/types/monev';
 
@@ -23,7 +24,23 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
     const { id } = await params;
+    const existing = await getMonevFormById(id);
+
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Formulir tidak ditemukan.' }, { status: 404 });
+    }
+
+    // Ownership check
+    if (session?.user) {
+      const userRole = (session.user as any).role;
+      const userDosenId = (session.user as any).dosen_id;
+      if (userRole !== 'ADMIN' && userDosenId && existing.dosen_id !== userDosenId) {
+        return NextResponse.json({ success: false, error: 'Anda tidak memiliki hak akses untuk mengedit formulir dosen lain.' }, { status: 403 });
+      }
+    }
+
     const body: MonevFormData = await request.json();
     body.id = id;
 
@@ -39,8 +56,27 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
     const { id } = await params;
-    const deleted = await deleteMonevForm(id);
+    const existing = await getMonevFormById(id);
+
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Formulir tidak ditemukan.' }, { status: 404 });
+    }
+
+    let callerDosenId: string | undefined = undefined;
+    if (session?.user) {
+      const userRole = (session.user as any).role;
+      const userDosenId = (session.user as any).dosen_id;
+      if (userRole !== 'ADMIN' && userDosenId) {
+        if (existing.dosen_id !== userDosenId) {
+          return NextResponse.json({ success: false, error: 'Anda tidak memiliki hak akses untuk menghapus formulir dosen lain.' }, { status: 403 });
+        }
+        callerDosenId = userDosenId;
+      }
+    }
+
+    const deleted = await deleteMonevForm(id, callerDosenId);
     if (!deleted) {
       return NextResponse.json({ success: false, error: 'Gagal menghapus formulir.' }, { status: 500 });
     }

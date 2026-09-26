@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { 
   PlusCircle, 
   FileText, 
@@ -16,12 +17,16 @@ import {
   CheckCircle2,
   FileCheck2,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  Lock,
+  UserCheck
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { MonevFormData, Prodi } from '@/types/monev';
 
 export default function DashboardPage() {
+  const { data: session } = useSession();
   const [forms, setForms] = useState<MonevFormData[]>([]);
   const [prodis, setProdis] = useState<Prodi[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,14 +118,30 @@ export default function DashboardPage() {
         {/* Banner Section */}
         <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-md mb-8 relative overflow-hidden">
           <div className="relative z-10 max-w-3xl">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-200 text-xs font-semibold backdrop-blur mb-3">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Standar Dokumen ISO: 051/FORM/PDK/FT/2023
-            </span>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-200 text-xs font-semibold backdrop-blur">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Standar Dokumen ISO: 051/FORM/PDK/FT/2023
+              </span>
+              {session?.user && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200 text-xs font-semibold backdrop-blur">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Akun Terverifikasi
+                </span>
+              )}
+            </div>
+
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Sistem Monev Perwalian Mahasiswa
+              {session?.user?.name ? `Selamat Datang, ${session.user.name}` : 'Sistem Monev Perwalian Mahasiswa'}
             </h1>
             <p className="mt-2 text-sm sm:text-base text-slate-300 leading-relaxed">
-              Platform bimbingan akademik, monitoring capaian IPS & PK2, serta pencetakan formulir resmi evaluasi perwalian Fakultas Teknik UKWMS.
+              {session?.user ? (
+                <span>
+                  Portal perwalian dan evaluasi akademik khusus dosen wali. Anda hanya mengakses arsip formulir dan mahasiswa bimbingan Anda.
+                </span>
+              ) : (
+                <span>
+                  Platform bimbingan akademik, monitoring capaian IPS & PK2, serta pencetakan formulir resmi evaluasi perwalian Fakultas Teknik UKWMS.
+                </span>
+              )}
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link

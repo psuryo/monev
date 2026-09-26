@@ -176,6 +176,128 @@ export async function getDosenList(): Promise<Dosen[]> {
   }
 }
 
+export async function getDosenById(id: string): Promise<Dosen | null> {
+  const sql = getDbClient();
+  if (!sql || !isValidUuid(id)) {
+    return mockDosens.find(d => d.id === id) || null;
+  }
+  try {
+    const rows = await sql`
+      SELECT d.id, d.nik, d.nama, d.email, d.prodi_id, p.nama as prodi_nama
+      FROM dosen d
+      JOIN prodi p ON d.prodi_id = p.id
+      WHERE d.id = ${id}
+      LIMIT 1
+    `;
+    return (rows[0] as Dosen) || null;
+  } catch (error) {
+    console.error('getDosenById error:', error);
+    return null;
+  }
+}
+
+export async function getDosenByEmail(email: string): Promise<Dosen | null> {
+  const cleanEmail = email.trim().toLowerCase();
+  const sql = getDbClient();
+  if (!sql) {
+    return mockDosens.find(d => d.email?.toLowerCase() === cleanEmail) || null;
+  }
+  try {
+    const rows = await sql`
+      SELECT d.id, d.nik, d.nama, d.email, d.prodi_id, p.nama as prodi_nama
+      FROM dosen d
+      JOIN prodi p ON d.prodi_id = p.id
+      WHERE LOWER(d.email) = ${cleanEmail}
+      LIMIT 1
+    `;
+    return (rows[0] as Dosen) || null;
+  } catch (error) {
+    console.error('getDosenByEmail error:', error);
+    return null;
+  }
+}
+
+export async function getDosenByNik(nik: string): Promise<Dosen | null> {
+  const cleanNik = nik.trim();
+  const sql = getDbClient();
+  if (!sql) {
+    return mockDosens.find(d => d.nik === cleanNik) || null;
+  }
+  try {
+    const rows = await sql`
+      SELECT d.id, d.nik, d.nama, d.email, d.prodi_id, p.nama as prodi_nama
+      FROM dosen d
+      JOIN prodi p ON d.prodi_id = p.id
+      WHERE d.nik = ${cleanNik}
+      LIMIT 1
+    `;
+    return (rows[0] as Dosen) || null;
+  } catch (error) {
+    console.error('getDosenByNik error:', error);
+    return null;
+  }
+}
+
+export async function findOrCreateDosenForAuth(profile: {
+  email?: string | null;
+  name?: string | null;
+  username?: string | null;
+  nik?: string | null;
+}): Promise<Dosen | null> {
+  if (profile.email) {
+    const byEmail = await getDosenByEmail(profile.email);
+    if (byEmail) return byEmail;
+  }
+
+  const potentialNik = profile.nik || (profile.username && /^\d+$/.test(profile.username) ? profile.username : null);
+  if (potentialNik) {
+    const byNik = await getDosenByNik(potentialNik);
+    if (byNik) return byNik;
+  }
+
+  // If not found in database, check if we can auto-provision a lecturer record
+  const sql = getDbClient();
+  if (!sql) {
+    const prodi = mockProdis[0];
+    const newDosen: Dosen = {
+      id: `d-${Date.now()}`,
+      nik: potentialNik || `D-${Math.floor(100000 + Math.random() * 900000)}`,
+      nama: profile.name || profile.email?.split('@')[0] || 'Dosen Wali',
+      email: profile.email || undefined,
+      prodi_id: prodi.id,
+      prodi_nama: prodi.nama
+    };
+    mockDosens.push(newDosen);
+    return newDosen;
+  }
+
+  try {
+    // Get default prodi (Informatika or first available)
+    const prodiRows = await sql`SELECT id, nama FROM prodi ORDER BY kode ASC LIMIT 1`;
+    const defaultProdiId = prodiRows[0]?.id;
+    const defaultProdiNama = prodiRows[0]?.nama || 'Informatika';
+
+    if (!defaultProdiId) return null;
+
+    const generatedNik = potentialNik || `58${Math.floor(1000000 + Math.random() * 9000000)}`;
+    const displayName = profile.name || (profile.email ? profile.email.split('@')[0] : 'Dosen Wali');
+
+    const created = await sql`
+      INSERT INTO dosen (nik, nama, email, prodi_id)
+      VALUES (${generatedNik}, ${displayName}, ${profile.email || null}, ${defaultProdiId})
+      RETURNING id, nik, nama, email, prodi_id
+    `;
+
+    return {
+      ...created[0],
+      prodi_nama: defaultProdiNama
+    } as Dosen;
+  } catch (error) {
+    console.error('findOrCreateDosenForAuth error:', error);
+    return null;
+  }
+}
+
 export async function createDosen(data: { nik: string; nama: string; email?: string; prodi_id: string }): Promise<Dosen> {
   const sql = getDbClient();
   if (!sql) {
@@ -316,25 +438,84 @@ export async function getTahunAkademikList(): Promise<TahunAkademik[]> {
   }
 }
 
-export async function getAllMonevForms(): Promise<MonevFormData[]> {
+export async function getAllMonevForms(dosenId?: string, prodiId?: string): Promise<MonevFormData[]> {
   const sql = getDbClient();
-  if (!sql) return mockMonevForms;
+  const validDosenId = dosenId && dosenId !== 'ALL' && isValidUuid(dosenId) ? dosenId : undefined;
+  const validProdiId = prodiId && prodiId !== 'ALL' && isValidUuid(prodiId) ? prodiId : undefined;
+
+  if (!sql) {
+    let res = mockMonevForms;
+    if (validDosenId) res = res.filter(f => f.dosen_id === validDosenId);
+    if (validProdiId) res = res.filter(f => f.prodi_id === validProdiId);
+    return res;
+  }
 
   try {
-    const rows = await sql`
-      SELECT 
-        mf.id, mf.no_dokumen, mf.tanggal_terbit, mf.revisi_ke, mf.halaman,
-        mf.dosen_id, d.nama as dosen_nama, d.nik as dosen_nik,
-        mf.prodi_id, p.nama as prodi_nama,
-        mf.tahun_akademik_id, ta.tahun_ajaran, ta.semester,
-        mf.jenis_pertemuan, mf.tanggal_pertemuan, mf.status, mf.catatan_tambahan,
-        mf.signature_url, mf.signed_at, mf.created_at, mf.updated_at
-      FROM monev_forms mf
-      JOIN dosen d ON mf.dosen_id = d.id
-      JOIN prodi p ON mf.prodi_id = p.id
-      JOIN tahun_akademik ta ON mf.tahun_akademik_id = ta.id
-      ORDER BY mf.created_at DESC
-    `;
+    let rows;
+    if (validDosenId && validProdiId) {
+      rows = await sql`
+        SELECT 
+          mf.id, mf.no_dokumen, mf.tanggal_terbit, mf.revisi_ke, mf.halaman,
+          mf.dosen_id, d.nama as dosen_nama, d.nik as dosen_nik,
+          mf.prodi_id, p.nama as prodi_nama,
+          mf.tahun_akademik_id, ta.tahun_ajaran, ta.semester,
+          mf.jenis_pertemuan, mf.tanggal_pertemuan, mf.status, mf.catatan_tambahan,
+          mf.signature_url, mf.signed_at, mf.created_at, mf.updated_at
+        FROM monev_forms mf
+        JOIN dosen d ON mf.dosen_id = d.id
+        JOIN prodi p ON mf.prodi_id = p.id
+        JOIN tahun_akademik ta ON mf.tahun_akademik_id = ta.id
+        WHERE mf.dosen_id = ${validDosenId} AND mf.prodi_id = ${validProdiId}
+        ORDER BY mf.created_at DESC
+      `;
+    } else if (validDosenId) {
+      rows = await sql`
+        SELECT 
+          mf.id, mf.no_dokumen, mf.tanggal_terbit, mf.revisi_ke, mf.halaman,
+          mf.dosen_id, d.nama as dosen_nama, d.nik as dosen_nik,
+          mf.prodi_id, p.nama as prodi_nama,
+          mf.tahun_akademik_id, ta.tahun_ajaran, ta.semester,
+          mf.jenis_pertemuan, mf.tanggal_pertemuan, mf.status, mf.catatan_tambahan,
+          mf.signature_url, mf.signed_at, mf.created_at, mf.updated_at
+        FROM monev_forms mf
+        JOIN dosen d ON mf.dosen_id = d.id
+        JOIN prodi p ON mf.prodi_id = p.id
+        JOIN tahun_akademik ta ON mf.tahun_akademik_id = ta.id
+        WHERE mf.dosen_id = ${validDosenId}
+        ORDER BY mf.created_at DESC
+      `;
+    } else if (validProdiId) {
+      rows = await sql`
+        SELECT 
+          mf.id, mf.no_dokumen, mf.tanggal_terbit, mf.revisi_ke, mf.halaman,
+          mf.dosen_id, d.nama as dosen_nama, d.nik as dosen_nik,
+          mf.prodi_id, p.nama as prodi_nama,
+          mf.tahun_akademik_id, ta.tahun_ajaran, ta.semester,
+          mf.jenis_pertemuan, mf.tanggal_pertemuan, mf.status, mf.catatan_tambahan,
+          mf.signature_url, mf.signed_at, mf.created_at, mf.updated_at
+        FROM monev_forms mf
+        JOIN dosen d ON mf.dosen_id = d.id
+        JOIN prodi p ON mf.prodi_id = p.id
+        JOIN tahun_akademik ta ON mf.tahun_akademik_id = ta.id
+        WHERE mf.prodi_id = ${validProdiId}
+        ORDER BY mf.created_at DESC
+      `;
+    } else {
+      rows = await sql`
+        SELECT 
+          mf.id, mf.no_dokumen, mf.tanggal_terbit, mf.revisi_ke, mf.halaman,
+          mf.dosen_id, d.nama as dosen_nama, d.nik as dosen_nik,
+          mf.prodi_id, p.nama as prodi_nama,
+          mf.tahun_akademik_id, ta.tahun_ajaran, ta.semester,
+          mf.jenis_pertemuan, mf.tanggal_pertemuan, mf.status, mf.catatan_tambahan,
+          mf.signature_url, mf.signed_at, mf.created_at, mf.updated_at
+        FROM monev_forms mf
+        JOIN dosen d ON mf.dosen_id = d.id
+        JOIN prodi p ON mf.prodi_id = p.id
+        JOIN tahun_akademik ta ON mf.tahun_akademik_id = ta.id
+        ORDER BY mf.created_at DESC
+      `;
+    }
 
     // Fetch details for each form
     const formsWithDetails: MonevFormData[] = await Promise.all(
@@ -650,10 +831,12 @@ export async function saveMonevForm(data: MonevFormData): Promise<MonevFormData>
   }
 }
 
-export async function deleteMonevForm(id: string): Promise<boolean> {
+export async function deleteMonevForm(id: string, dosenId?: string): Promise<boolean> {
   const sql = getDbClient();
+  const validDosenId = dosenId && dosenId !== 'ALL' && isValidUuid(dosenId) ? dosenId : undefined;
+
   if (!sql) {
-    mockMonevForms = mockMonevForms.filter(f => f.id !== id);
+    mockMonevForms = mockMonevForms.filter(f => f.id !== id || (validDosenId && f.dosen_id !== validDosenId));
     return true;
   }
 
@@ -663,7 +846,11 @@ export async function deleteMonevForm(id: string): Promise<boolean> {
   }
 
   try {
-    await sql`DELETE FROM monev_forms WHERE id = ${id}`;
+    if (validDosenId) {
+      await sql`DELETE FROM monev_forms WHERE id = ${id} AND dosen_id = ${validDosenId}`;
+    } else {
+      await sql`DELETE FROM monev_forms WHERE id = ${id}`;
+    }
     return true;
   } catch (error) {
     console.error('deleteMonevForm error:', error);

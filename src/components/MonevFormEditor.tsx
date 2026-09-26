@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { 
   Save, 
   Printer, 
@@ -10,16 +11,18 @@ import {
   Plus, 
   Trash2, 
   CheckCircle, 
-  Sparkles,
-  Users,
-  GraduationCap,
-  Calendar,
-  FileCheck2,
-  AlertCircle,
-  Globe,
-  User,
-  Filter,
-  Layers
+  Sparkles, 
+  Users, 
+  GraduationCap, 
+  Calendar, 
+  FileCheck2, 
+  AlertCircle, 
+  Globe, 
+  User, 
+  Filter, 
+  Layers, 
+  Lock, 
+  ShieldCheck 
 } from 'lucide-react';
 import { MonevFormData, Prodi, Dosen, Mahasiswa, TahunAkademik } from '@/types/monev';
 import { MonevPrintLayout } from './MonevPrintLayout';
@@ -32,6 +35,7 @@ interface MonevFormEditorProps {
 
 export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEditorProps) {
   const router = useRouter();
+  const { data: session } = useSession();
 
   // Master Data States
   const [prodis, setProdis] = useState<Prodi[]>([]);
@@ -119,23 +123,46 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
         }
 
         // Set default prodi and dosen if not set
-        if (!formData.prodi_id && prodiRes.data?.length > 0) {
-          const infProdi = prodiRes.data.find((p: Prodi) => p.kode === 'INF') || prodiRes.data[0];
-          setFormData(prev => ({
-            ...prev,
-            prodi_id: infProdi.id,
-            prodi_nama: infProdi.nama
-          }));
+        const sessionDosenId = (session?.user as any)?.dosen_id;
+        const sessionDosenNama = (session?.user as any)?.nama || session?.user?.name;
+        const sessionDosenNik = (session?.user as any)?.nik;
+        const sessionProdiId = (session?.user as any)?.prodi_id;
+        const sessionProdiNama = (session?.user as any)?.prodi_nama;
+
+        if (!formData.prodi_id) {
+          if (sessionProdiId) {
+            setFormData(prev => ({
+              ...prev,
+              prodi_id: sessionProdiId,
+              prodi_nama: sessionProdiNama || prev.prodi_nama
+            }));
+          } else if (prodiRes.data?.length > 0) {
+            const infProdi = prodiRes.data.find((p: Prodi) => p.kode === 'INF') || prodiRes.data[0];
+            setFormData(prev => ({
+              ...prev,
+              prodi_id: infProdi.id,
+              prodi_nama: infProdi.nama
+            }));
+          }
         }
 
-        if (!formData.dosen_id && dosenRes.data?.length > 0) {
-          const defaultDosen = dosenRes.data[0];
-          setFormData(prev => ({
-            ...prev,
-            dosen_id: defaultDosen.id,
-            dosen_nama: defaultDosen.nama,
-            dosen_nik: defaultDosen.nik
-          }));
+        if (!formData.dosen_id) {
+          if (sessionDosenId) {
+            setFormData(prev => ({
+              ...prev,
+              dosen_id: sessionDosenId,
+              dosen_nama: sessionDosenNama || 'Dosen Wali',
+              dosen_nik: sessionDosenNik || '-'
+            }));
+          } else if (dosenRes.data?.length > 0) {
+            const defaultDosen = dosenRes.data[0];
+            setFormData(prev => ({
+              ...prev,
+              dosen_id: defaultDosen.id,
+              dosen_nama: defaultDosen.nama,
+              dosen_nik: defaultDosen.nik
+            }));
+          }
         }
       } catch (err) {
         console.error('Failed to load master data:', err);
@@ -615,21 +642,39 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                 
                 {/* Dosen Wali */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Nama Wali Studi / NIK <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.dosen_id}
-                    onChange={(e) => handleDosenChange(e.target.value)}
-                    className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">-- Pilih Dosen Wali --</option>
-                    {dosens.map(d => (
-                      <option key={d.id} value={d.id}>
-                        {d.nama} (NIK: {d.nik})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Nama Wali Studi / NIK <span className="text-red-500">*</span>
+                    </label>
+                    {(session?.user as any)?.role !== 'ADMIN' && (session?.user as any)?.dosen_id && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                        <Lock className="w-2.5 h-2.5" /> Akun Terverifikasi
+                      </span>
+                    )}
+                  </div>
+
+                  {(session?.user as any)?.role === 'ADMIN' ? (
+                    <select
+                      value={formData.dosen_id}
+                      onChange={(e) => handleDosenChange(e.target.value)}
+                      className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">-- Pilih Dosen Wali --</option>
+                      {dosens.map(d => (
+                        <option key={d.id} value={d.id}>
+                          {d.nama} (NIK: {d.nik})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full text-xs rounded-lg border border-slate-200 dark:border-slate-800 p-2.5 bg-slate-50 dark:bg-slate-900/60 text-slate-800 dark:text-slate-200 font-medium flex items-center justify-between">
+                      <div className="truncate">
+                        <span className="font-semibold">{formData.dosen_nama || session?.user?.name || 'Dosen Wali'}</span>
+                        <span className="text-slate-500 text-[11px] ml-1.5">(NIK: {formData.dosen_nik || (session?.user as any)?.nik || '-'})</span>
+                      </div>
+                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0 ml-2" />
+                    </div>
+                  )}
                 </div>
 
                 {/* Program Studi */}
