@@ -23,13 +23,10 @@ let mockProdis: Prodi[] = [
 
 let mockDosens: Dosen[] = [
   { id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', nik: '581000020', nama: 'Philipus Suryo Subandoro, S.Kom., M.Kom.', email: 'philipus@ukwms.ac.id', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika' },
+  { id: 'd2a1b3c4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', nik: '581000021', nama: 'Dr. Ir. Yohanes Surya, M.T.', email: 'yohanes@ukwms.ac.id', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika' },
+  { id: 'e3b2c1d0-f4e5-4b6a-9d8c-1f2e3d4c5b6a', nik: '581000022', nama: 'Ir. Maria Fransiska, M.Eng.', email: 'maria@ukwms.ac.id', prodi_id: '05b4754f-1d8c-49c9-8b0b-4c7c8a2058f7', prodi_nama: 'Teknik Elektro' },
 ];
 
-let mockMahasiswas: Mahasiswa[] = [
-  { id: 'b9b93427-1b75-4074-8f2b-a0c42c8f9f8e', nrp: '5803024005', nama: 'Daniel', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', dosen_wali_id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', dosen_wali_nama: 'Philipus Suryo Subandoro, S.Kom., M.Kom.', angkatan: 2023 },
-  { id: '04caa331-a5ae-4dd0-b733-6075634e08c4', nrp: '5803024006', nama: 'Nathanael Melvin Christian', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', dosen_wali_id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', dosen_wali_nama: 'Philipus Suryo Subandoro, S.Kom., M.Kom.', angkatan: 2023 },
-  { id: 'e6dfcb11-8d48-4635-a188-f81aa12bbc08', nrp: '5803024008', nama: 'Benaya Nathanael Yeroham', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', dosen_wali_id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', dosen_wali_nama: 'Philipus Suryo Subandoro, S.Kom., M.Kom.', angkatan: 2023 },
-];
 
 let mockTahunAkademik: TahunAkademik[] = [
   { id: 'c018b39c-d376-41d5-a0a4-85be02deab2d', tahun_ajaran: '2026/2027', semester: 'GASAL', is_active: true },
@@ -327,21 +324,61 @@ export async function createDosen(data: { nik: string; nama: string; email?: str
   } as Dosen;
 }
 
-export async function getMahasiswaList(dosenId?: string, prodiId?: string): Promise<Mahasiswa[]> {
+export interface GetMahasiswaOptions {
+  dosenId?: string;       // Specific lecturer UUID or 'ALL' or 'POOL' or 'UNASSIGNED'
+  prodiId?: string;       // Specific prodi UUID or 'ALL'
+  angkatan?: number;
+  search?: string;
+  poolOnly?: boolean;
+}
+
+export async function getMahasiswaList(
+  dosenIdOrOptions?: string | GetMahasiswaOptions, 
+  prodiIdParam?: string
+): Promise<Mahasiswa[]> {
+  let options: GetMahasiswaOptions = {};
+  if (typeof dosenIdOrOptions === 'object' && dosenIdOrOptions !== null) {
+    options = dosenIdOrOptions;
+  } else {
+    options = {
+      dosenId: dosenIdOrOptions,
+      prodiId: prodiIdParam
+    };
+  }
+
   const sql = getDbClient();
-  const validDosenId = dosenId && dosenId !== 'ALL' && isValidUuid(dosenId) ? dosenId : undefined;
-  const validProdiId = prodiId && prodiId !== 'ALL' && isValidUuid(prodiId) ? prodiId : undefined;
+  const isPool = Boolean(options.poolOnly) || options.dosenId === 'POOL' || options.dosenId === 'UNASSIGNED';
+  const isAll = options.dosenId === 'ALL';
+  const validDosenId = !isPool && !isAll && options.dosenId && isValidUuid(options.dosenId) ? options.dosenId : undefined;
+  const validProdiId = options.prodiId && options.prodiId !== 'ALL' && isValidUuid(options.prodiId) ? options.prodiId : undefined;
+  const search = options.search?.trim().toLowerCase();
+  const angkatan = options.angkatan ? Number(options.angkatan) : undefined;
 
   if (!sql) {
-    let res = mockMahasiswas;
-    if (validDosenId) res = res.filter(m => m.dosen_wali_id === validDosenId);
-    if (validProdiId) res = res.filter(m => m.prodi_id === validProdiId);
-    return res;
+    return [];
   }
 
   try {
-    let rows;
-    if (validDosenId && validProdiId) {
+    let rows: any[] = [];
+    if (isPool && validProdiId) {
+      rows = await sql`
+        SELECT m.id, m.nrp, m.nama, m.prodi_id, m.dosen_wali_id, m.angkatan, p.nama as prodi_nama, d.nama as dosen_wali_nama
+        FROM mahasiswa m
+        JOIN prodi p ON m.prodi_id = p.id
+        LEFT JOIN dosen d ON m.dosen_wali_id = d.id
+        WHERE m.dosen_wali_id IS NULL AND m.prodi_id = ${validProdiId}
+        ORDER BY m.nrp ASC
+      `;
+    } else if (isPool) {
+      rows = await sql`
+        SELECT m.id, m.nrp, m.nama, m.prodi_id, m.dosen_wali_id, m.angkatan, p.nama as prodi_nama, d.nama as dosen_wali_nama
+        FROM mahasiswa m
+        JOIN prodi p ON m.prodi_id = p.id
+        LEFT JOIN dosen d ON m.dosen_wali_id = d.id
+        WHERE m.dosen_wali_id IS NULL
+        ORDER BY m.nrp ASC
+      `;
+    } else if (validDosenId && validProdiId) {
       rows = await sql`
         SELECT m.id, m.nrp, m.nama, m.prodi_id, m.dosen_wali_id, m.angkatan, p.nama as prodi_nama, d.nama as dosen_wali_nama
         FROM mahasiswa m
@@ -377,10 +414,128 @@ export async function getMahasiswaList(dosenId?: string, prodiId?: string): Prom
         ORDER BY m.nrp ASC
       `;
     }
-    return rows as Mahasiswa[];
+
+    let result = rows as Mahasiswa[];
+    if (angkatan) {
+      result = result.filter(m => m.angkatan === angkatan);
+    }
+    if (search) {
+      result = result.filter(m => 
+        (m.nama && m.nama.toLowerCase().includes(search)) || 
+        (m.nrp && m.nrp.toLowerCase().includes(search))
+      );
+    }
+    return result;
   } catch (error) {
     console.error('getMahasiswaList error:', error);
-    return mockMahasiswas;
+    return [];
+  }
+}
+
+export async function assignMahasiswaToDosen(
+  mahasiswaIds: string[], 
+  dosenId: string
+): Promise<{ success: boolean; assignedCount: number; errors?: string[] }> {
+  const sql = getDbClient();
+  if (!mahasiswaIds || mahasiswaIds.length === 0) {
+    return { success: true, assignedCount: 0 };
+  }
+
+  if (!sql) {
+    throw new Error('Koneksi ke database tidak tersedia.');
+  }
+
+  try {
+    const dosen = await sql`SELECT nama FROM dosen WHERE id = ${dosenId} LIMIT 1`;
+    const dosenNama = dosen[0]?.nama || 'Dosen Wali';
+
+    // Verify existing students to enforce exclusivity
+    const existing = await sql`
+      SELECT m.id, m.nrp, m.nama, m.dosen_wali_id, d.nama as dosen_wali_nama
+      FROM mahasiswa m
+      LEFT JOIN dosen d ON m.dosen_wali_id = d.id
+      WHERE m.id = ANY(${mahasiswaIds})
+    `;
+
+    const errors: string[] = [];
+    const validIds: string[] = [];
+
+    for (const row of existing) {
+      if (row.dosen_wali_id && row.dosen_wali_id !== dosenId) {
+        errors.push(`Mahasiswa "${row.nrp} - ${row.nama}" sudah berada di bawah perwalian ${row.dosen_wali_nama || 'dosen lain'} dan tidak dapat diklaim.`);
+      } else {
+        validIds.push(row.id);
+      }
+    }
+
+    if (errors.length > 0 && validIds.length === 0) {
+      throw new Error(errors.join('\n'));
+    }
+
+    if (validIds.length > 0) {
+      await sql`
+        UPDATE mahasiswa
+        SET dosen_wali_id = ${dosenId}
+        WHERE id = ANY(${validIds})
+      `;
+    }
+
+    return {
+      success: true,
+      assignedCount: validIds.length,
+      errors: errors.length > 0 ? errors : undefined
+    };
+  } catch (error: any) {
+    console.error('assignMahasiswaToDosen error:', error);
+    throw error;
+  }
+}
+
+export async function unassignMahasiswaFromDosen(
+  mahasiswaIds: string[], 
+  currentDosenId?: string
+): Promise<{ success: boolean; unassignedCount: number }> {
+  const sql = getDbClient();
+  if (!mahasiswaIds || mahasiswaIds.length === 0) {
+    return { success: true, unassignedCount: 0 };
+  }
+
+  if (!sql) {
+    throw new Error('Koneksi ke database tidak tersedia.');
+  }
+
+  try {
+    if (currentDosenId && isValidUuid(currentDosenId)) {
+      await sql`
+        UPDATE mahasiswa
+        SET dosen_wali_id = NULL
+        WHERE id = ANY(${mahasiswaIds}) AND dosen_wali_id = ${currentDosenId}
+      `;
+    } else {
+      await sql`
+        UPDATE mahasiswa
+        SET dosen_wali_id = NULL
+        WHERE id = ANY(${mahasiswaIds})
+      `;
+    }
+    return { success: true, unassignedCount: mahasiswaIds.length };
+  } catch (error: any) {
+    console.error('unassignMahasiswaFromDosen error:', error);
+    throw error;
+  }
+}
+
+export async function deleteMahasiswa(id: string): Promise<boolean> {
+  const sql = getDbClient();
+  if (!sql) {
+    throw new Error('Koneksi ke database tidak tersedia.');
+  }
+  try {
+    await sql`DELETE FROM mahasiswa WHERE id = ${id}`;
+    return true;
+  } catch (error) {
+    console.error('deleteMahasiswa error:', error);
+    throw error;
   }
 }
 
@@ -389,20 +544,7 @@ export async function createMahasiswa(data: { nrp: string; nama: string; prodi_i
   const angkatan = data.angkatan || new Date().getFullYear();
 
   if (!sql) {
-    const prodi = mockProdis.find(p => p.id === data.prodi_id);
-    const dosen = mockDosens.find(d => d.id === data.dosen_wali_id);
-    const newMhs: Mahasiswa = {
-      id: `m-${Date.now()}`,
-      nrp: data.nrp,
-      nama: data.nama,
-      prodi_id: data.prodi_id,
-      prodi_nama: prodi?.nama || 'Informatika',
-      dosen_wali_id: data.dosen_wali_id,
-      dosen_wali_nama: dosen?.nama,
-      angkatan
-    };
-    mockMahasiswas.push(newMhs);
-    return newMhs;
+    throw new Error('Koneksi ke database tidak tersedia.');
   }
 
   const rows = await sql`

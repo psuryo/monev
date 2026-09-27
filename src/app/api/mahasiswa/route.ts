@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getMahasiswaList, createMahasiswa } from '@/lib/db';
+import { getMahasiswaList, createMahasiswa, deleteMahasiswa } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,17 +8,40 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     let dosenId = searchParams.get('dosenId') || undefined;
     const prodiId = searchParams.get('prodiId') || undefined;
+    const angkatan = searchParams.get('angkatan') ? parseInt(searchParams.get('angkatan')!, 10) : undefined;
+    const search = searchParams.get('search') || undefined;
+    const scope = searchParams.get('scope'); // 'my' | 'pool' | 'all'
+    const isPool = searchParams.get('pool') === 'true' || scope === 'pool' || dosenId === 'POOL';
+    const isAll = searchParams.get('all') === 'true' || scope === 'all' || dosenId === 'ALL';
 
-    // If no dosenId query is passed and user is logged in, default to the lecturer's own advisees
-    if (!dosenId && session?.user && (session.user as any).dosen_id) {
+    // If explicit scope or filter
+    if (isPool) {
+      dosenId = 'POOL';
+    } else if (isAll) {
+      dosenId = 'ALL';
+    } else if (scope === 'my' && session?.user && (session.user as any).dosen_id) {
+      dosenId = (session.user as any).dosen_id;
+    } else if (!dosenId && session?.user && (session.user as any).dosen_id) {
+      // Default: if no param is given and lecturer is logged in, show their own advisees
       const userRole = (session.user as any).role;
       if (userRole !== 'ADMIN' && userRole !== 'KAPRODI') {
         dosenId = (session.user as any).dosen_id;
       }
     }
 
-    const data = await getMahasiswaList(dosenId, prodiId);
-    return NextResponse.json({ success: true, data });
+    const data = await getMahasiswaList({
+      dosenId,
+      prodiId,
+      angkatan,
+      search,
+      poolOnly: isPool
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      count: data.length, 
+      data 
+    });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -29,9 +52,11 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     const body = await request.json();
 
-    // Default dosen_wali_id to current lecturer if not specified
-    if (!body.dosen_wali_id && session?.user && (session.user as any).dosen_id) {
+    // If assignToMe is true or body doesn't specify dosen_wali_id and addToPool is false, attach to session lecturer
+    if (body.assignToMe && session?.user && (session.user as any).dosen_id) {
       body.dosen_wali_id = (session.user as any).dosen_id;
+    } else if (body.addToPool) {
+      body.dosen_wali_id = undefined;
     }
 
     if (!body.nrp || !body.nama || !body.prodi_id) {
@@ -43,6 +68,21 @@ export async function POST(request: NextRequest) {
 
     const created = await createMahasiswa(body);
     return NextResponse.json({ success: true, data: created });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Parameter id wajib disertakan' }, { status: 400 });
+    }
+
+    const deleted = await deleteMahasiswa(id);
+    return NextResponse.json({ success: deleted });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

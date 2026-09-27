@@ -4,6 +4,8 @@ import Credentials from 'next-auth/providers/credentials';
 import { findOrCreateDosenForAuth, getDosenByEmail, getDosenByNik } from '@/lib/db';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'monev-secret-key-fallback-for-dev-32chars',
+  trustHost: true,
   providers: [
     ...(process.env.AUTH_KEYCLOAK_ID && process.env.AUTH_KEYCLOAK_ISSUER
       ? [

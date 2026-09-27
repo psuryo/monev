@@ -768,21 +768,32 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
 
             {/* Section 2: Mahasiswa Bimbingan */}
             <div className="bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <Users className="w-4 h-4 text-blue-600" />
                     2. Mahasiswa Dibawah Perwalian (Peserta Pertemuan)
                   </h2>
-                  <p className="text-xs text-slate-500">Pilih dari daftar mahasiswa bimbingan atau ketik manual.</p>
+                  <p className="text-xs text-slate-500">Pilih dari daftar mahasiswa perwalian Anda atau ketik manual.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={addAttendee}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 font-medium flex items-center gap-1 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Tambah Baris
-                </button>
+                <div className="flex items-center gap-2">
+                  <a
+                    href="/perwalian"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 font-medium flex items-center gap-1 transition-colors"
+                    title="Buka halaman manajemen perwalian untuk mengambil mahasiswa dari pool"
+                  >
+                    <User className="w-3.5 h-3.5 text-blue-600" /> Kelola Pool Mahasiswa
+                  </a>
+                  <button
+                    type="button"
+                    onClick={addAttendee}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Tambah Baris
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-3">

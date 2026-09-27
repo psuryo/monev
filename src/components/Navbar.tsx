@@ -77,6 +77,18 @@ export function Navbar({ isDbConnected }: { isDbConnected?: boolean }) {
             </Link>
 
             <Link
+              href="/perwalian"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pathname === '/perwalian'
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-semibold'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              Mahasiswa Perwalian
+            </Link>
+
+            <Link
               href="/monev/new"
               className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
                 pathname === '/monev/new'

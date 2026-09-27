@@ -1,6 +1,12 @@
 const { neon } = require('@neondatabase/serverless');
+const dns = require('dns');
 const fs = require('fs');
 const path = require('path');
+
+// Prioritize IPv4 to avoid UND_ERR_CONNECT_TIMEOUT on IPv6
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 // Read .env.local
 let dbUrl = process.env.DATABASE_URL;

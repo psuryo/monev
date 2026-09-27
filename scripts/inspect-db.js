@@ -1,6 +1,11 @@
 const { neon } = require('@neondatabase/serverless');
+const dns = require('dns');
 const fs = require('fs');
 const path = require('path');
+
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 const envContent = fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf-8');
 const match = envContent.match(/DATABASE_URL=["']?([^"'\r\n]+)["']?/);

@@ -151,6 +151,13 @@ export default function DashboardPage() {
                 <PlusCircle className="w-4 h-4" />
                 Buat Formulir Baru
               </Link>
+              <Link
+                href="/perwalian"
+                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all"
+              >
+                <Users className="w-4 h-4" />
+                Kelola Mahasiswa Perwalian
+              </Link>
             </div>
           </div>
         </div>
@@ -177,15 +184,21 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-              <Users className="w-6 h-6" />
+          <Link 
+            href="/perwalian"
+            className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between hover:border-blue-400 transition-all group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <Users className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-extrabold text-slate-900 dark:text-white">{totalAdviseesAttended}</div>
+                <div className="text-xs text-slate-500">Total Mahasiswa Terbimbing</div>
+              </div>
             </div>
-            <div>
-              <div className="text-2xl font-extrabold text-slate-900 dark:text-white">{totalAdviseesAttended}</div>
-              <div className="text-xs text-slate-500">Total Mahasiswa Terbimbing</div>
-            </div>
-          </div>
+            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+          </Link>
         </div>
 
         {/* Filters & Search */}
