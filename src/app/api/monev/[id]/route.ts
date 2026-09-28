@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { getMonevFormById, saveMonevForm, deleteMonevForm } from '@/lib/db';
 import { MonevFormData } from '@/types/monev';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

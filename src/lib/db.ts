@@ -42,7 +42,12 @@ let mockMonevForms: MonevFormData[] = [];
 // ==========================================
 
 export function getDbClient() {
-  const dbUrl = process.env.DATABASE_URL;
+  const dbUrl = 
+    process.env.DATABASE_URL || 
+    process.env.DATABASE_URL_UNPOOLED || 
+    process.env.POSTGRES_URL || 
+    process.env.NEON_DATABASE_URL;
+    
   if (!dbUrl || dbUrl.trim() === '' || dbUrl.includes('placeholder')) {
     return null;
   }
@@ -54,7 +59,12 @@ export function getDbClient() {
   }
 }
 
-export const isUsingDatabase = () => Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '');
+export const isUsingDatabase = () => Boolean(
+  (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '') ||
+  (process.env.DATABASE_URL_UNPOOLED && process.env.DATABASE_URL_UNPOOLED.trim() !== '') ||
+  (process.env.POSTGRES_URL && process.env.POSTGRES_URL.trim() !== '') ||
+  (process.env.NEON_DATABASE_URL && process.env.NEON_DATABASE_URL.trim() !== '')
+);
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

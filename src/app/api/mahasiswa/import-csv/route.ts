@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { getDbClient, getProdiList } from '@/lib/db';
 import { Mahasiswa } from '@/types/monev';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

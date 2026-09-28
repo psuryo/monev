@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { getAllMonevForms, saveMonevForm } from '@/lib/db';
 import { MonevFormData } from '@/types/monev';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
