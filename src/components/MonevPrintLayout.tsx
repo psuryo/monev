@@ -322,50 +322,54 @@ export function MonevPrintLayout({ data }: MonevPrintLayoutProps) {
       </table>
 
       {/* ========================================================================= */}
-      {/* 4. PRA-KRS EVALUATION TABLE */}
+      {/* 4. PRA-KRS EVALUATION TABLE (Only for Pra-KRS) */}
       {/* ========================================================================= */}
-      <table className="monev-table mb-1">
-        <thead>
-          <tr className="bg-[#f2efe9]">
-            <th colSpan={6} className="py-1 font-bold italic text-center text-[10.5px] border-b border-black">
-              Diisi saat pra-KRS oleh dosen PA
-            </th>
-          </tr>
-          <tr>
-            <th className="w-[5%] py-1 font-normal text-[10px]">No</th>
-            <th className="w-[28%] py-1 font-normal text-[10px]">Nama Mahasiswa</th>
-            <th className="w-[10%] py-1 font-normal text-[10px]">IPS*</th>
-            <th className="w-[25%] py-1 font-normal text-[10px]">
-              Nama MK<br />dengan nilai D*
-            </th>
-            <th className="w-[20%] py-1 font-normal text-[9.5px] leading-tight">
-              Jumlah SKS MK<br />pilihan yang telah<br />diprogram (hingga<br />saat ini)
-            </th>
-            <th className="w-[12%] py-1 font-normal text-[10px]">
-              Perolehan<br />PK2
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {praKrsRows.map((pk, idx) => (
-            <tr key={idx} style={{ height: '28px' }}>
-              <td className="text-center font-normal">{idx + 1}.</td>
-              <td className="font-normal px-2 text-[10px] truncate">{pk.nama || ''}</td>
-              <td className="text-center font-normal text-[10px]">{pk.ips_sebelumnya || ''}</td>
-              <td className="font-normal px-2 text-[9.5px]">{pk.mk_nilai_d || ''}</td>
-              <td className="text-center font-normal text-[10px]">
-                {pk.total_sks_pilihan !== undefined && pk.total_sks_pilihan !== 0 ? pk.total_sks_pilihan : ''}
-              </td>
-              <td className="text-center font-normal text-[10px]">{pk.perolehan_pk2 || ''}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {data.jenis_pertemuan === 'PRA_KRS' && (
+        <>
+          <table className="monev-table mb-1">
+            <thead>
+              <tr className="bg-[#f2efe9]">
+                <th colSpan={6} className="py-1 font-bold italic text-center text-[10.5px] border-b border-black">
+                  Diisi saat pra-KRS oleh dosen PA
+                </th>
+              </tr>
+              <tr>
+                <th className="w-[5%] py-1 font-normal text-[10px]">No</th>
+                <th className="w-[28%] py-1 font-normal text-[10px]">Nama Mahasiswa</th>
+                <th className="w-[10%] py-1 font-normal text-[10px]">IPS*</th>
+                <th className="w-[25%] py-1 font-normal text-[10px]">
+                  Nama MK<br />dengan nilai D*
+                </th>
+                <th className="w-[20%] py-1 font-normal text-[9.5px] leading-tight">
+                  Jumlah SKS MK<br />pilihan yang telah<br />diprogram (hingga<br />saat ini)
+                </th>
+                <th className="w-[12%] py-1 font-normal text-[10px]">
+                  Perolehan<br />PK2
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {praKrsRows.map((pk, idx) => (
+                <tr key={idx} style={{ height: '28px' }}>
+                  <td className="text-center font-normal">{idx + 1}.</td>
+                  <td className="font-normal px-2 text-[10px] truncate">{pk.nama || ''}</td>
+                  <td className="text-center font-normal text-[10px]">{pk.ips_sebelumnya || ''}</td>
+                  <td className="font-normal px-2 text-[9.5px]">{pk.mk_nilai_d || ''}</td>
+                  <td className="text-center font-normal text-[10px]">
+                    {pk.total_sks_pilihan !== undefined && pk.total_sks_pilihan !== 0 ? pk.total_sks_pilihan : ''}
+                  </td>
+                  <td className="text-center font-normal text-[10px]">{pk.perolehan_pk2 || ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-      {/* Footnote 2 */}
-      <div className="text-[9.5px] italic mb-3">
-        * Semester sebelumnya
-      </div>
+          {/* Footnote 2 */}
+          <div className="text-[9.5px] italic mb-3">
+            * Semester sebelumnya
+          </div>
+        </>
+      )}
 
       {/* ========================================================================= */}
       {/* 5. SIGNATURE FOOTER BOX */}
