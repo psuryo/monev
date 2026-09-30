@@ -11,7 +11,8 @@ import {
   LogOut, 
   User, 
   ShieldCheck, 
-  LogIn 
+  LogIn,
+  FileCheck2 
 } from 'lucide-react';
 import { DbStatusBadge } from './DbStatusBadge';
 
@@ -66,38 +67,62 @@ export function Navbar({ isDbConnected }: { isDbConnected?: boolean }) {
           <nav className="hidden md:flex items-center gap-1">
             <Link
               href="/"
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                 pathname === '/'
                   ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
                   : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4" />
+              <LayoutDashboard className="w-3.5 h-3.5" />
               Dashboard
             </Link>
 
             <Link
               href="/perwalian"
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                 pathname === '/perwalian'
-                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-semibold'
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-bold'
                   : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              <User className="w-4 h-4" />
-              Mahasiswa Perwalian
+              <User className="w-3.5 h-3.5" />
+              Mahasiswa
+            </Link>
+
+            <Link
+              href="/mata-kuliah"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                pathname.startsWith('/mata-kuliah')
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-bold'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <FileCheck2 className="w-3.5 h-3.5 text-indigo-500" />
+              Mata Kuliah
+            </Link>
+
+            <Link
+              href="/review-soal"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                pathname.startsWith('/review-soal')
+                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-bold'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+              Review Soal (047)
             </Link>
 
             <Link
               href="/monev/new"
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                 pathname === '/monev/new'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300'
               }`}
             >
-              <PlusCircle className="w-4 h-4" />
-              Buat Form Monev
+              <PlusCircle className="w-3.5 h-3.5" />
+              Form Perwalian (051)
             </Link>
           </nav>
 

@@ -7,7 +7,11 @@ import {
   MonevFormData,
   MonevAttendeeItem,
   MonevTemuanItem,
-  MonevPraKrsItem
+  MonevPraKrsItem,
+  MataKuliah,
+  ReviewSoalFormData,
+  ReviewSoalItem,
+  DEFAULT_REVIEW_SOAL_POINTS
 } from '@/types/monev';
 
 // In-memory fallback mock dataset (in case Neon DATABASE_URL is not reachable or not set)
@@ -27,7 +31,6 @@ let mockDosens: Dosen[] = [
   { id: 'e3b2c1d0-f4e5-4b6a-9d8c-1f2e3d4c5b6a', nik: '581000022', nama: 'Ir. Maria Fransiska, M.Eng.', email: 'maria@ukwms.ac.id', prodi_id: '05b4754f-1d8c-49c9-8b0b-4c7c8a2058f7', prodi_nama: 'Teknik Elektro' },
 ];
 
-
 let mockTahunAkademik: TahunAkademik[] = [
   { id: 'c018b39c-d376-41d5-a0a4-85be02deab2d', tahun_ajaran: '2026/2027', semester: 'GASAL', is_active: true },
   { id: 'd1adfab4-0b24-4ee7-83fd-9c275cebce97', tahun_ajaran: '2026/2027', semester: 'GENAP', is_active: false },
@@ -35,7 +38,16 @@ let mockTahunAkademik: TahunAkademik[] = [
   { id: '13d38ad8-7478-4569-9d37-c03f629264c7', tahun_ajaran: '2025/2026', semester: 'GENAP', is_active: false },
 ];
 
+let mockMataKuliah: MataKuliah[] = [
+  { id: 'mk-1', kode: 'INF101', nama: 'Algoritma & Pemrograman', sks: 3, semester: 1, prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
+  { id: 'mk-2', kode: 'INF201', nama: 'Struktur Data & Algoritma', sks: 3, semester: 2, prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
+  { id: 'mk-3', kode: 'INF301', nama: 'Basis Data', sks: 3, semester: 3, prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
+  { id: 'mk-4', kode: 'INF401', nama: 'Pemrograman Web', sks: 3, semester: 4, prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
+  { id: 'mk-5', kode: 'INF402', nama: 'Rekayasa Perangkat Lunak', sks: 3, semester: 4, prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
+];
+
 let mockMonevForms: MonevFormData[] = [];
+let mockReviewSoalForms: ReviewSoalFormData[] = [];
 
 // ==========================================
 // DB CLIENT & HELPERS
@@ -119,11 +131,13 @@ export async function checkDbStatus() {
 
   try {
     const ping = await sql`SELECT NOW() as now, current_database() as db_name, version() as version`;
-    const [prodiRes, dosenRes, mhsRes, formRes] = await Promise.all([
+    const [prodiRes, dosenRes, mhsRes, formRes, mkRes, rsRes] = await Promise.all([
       sql`SELECT count(*)::int as cnt FROM prodi`,
       sql`SELECT count(*)::int as cnt FROM dosen`,
       sql`SELECT count(*)::int as cnt FROM mahasiswa`,
       sql`SELECT count(*)::int as cnt FROM monev_forms`,
+      sql`SELECT count(*)::int as cnt FROM mata_kuliah`.catch(() => [{ cnt: 0 }]),
+      sql`SELECT count(*)::int as cnt FROM review_soal_forms`.catch(() => [{ cnt: 0 }]),
     ]);
 
     return {
@@ -136,6 +150,8 @@ export async function checkDbStatus() {
         dosen: dosenRes[0].cnt,
         mahasiswa: mhsRes[0].cnt,
         monevForms: formRes[0].cnt,
+        mataKuliah: mkRes[0].cnt,
+        reviewSoalForms: rsRes[0].cnt,
       }
     };
   } catch (error: any) {
@@ -1009,3 +1025,468 @@ export async function deleteMonevForm(id: string, dosenId?: string): Promise<boo
     return false;
   }
 }
+
+// ==========================================
+// MATA KULIAH FUNCTIONS
+// ==========================================
+
+export async function getMataKuliahList(prodiId?: string, search?: string): Promise<MataKuliah[]> {
+  const sql = getDbClient();
+  const validProdiId = prodiId && prodiId !== 'ALL' && isValidUuid(prodiId) ? prodiId : undefined;
+  const cleanSearch = search?.trim().toLowerCase();
+
+  if (!sql) {
+    let list = mockMataKuliah;
+    if (validProdiId) {
+      list = list.filter(m => m.prodi_id === validProdiId);
+    }
+    if (cleanSearch) {
+      list = list.filter(m => 
+        m.nama.toLowerCase().includes(cleanSearch) || 
+        m.kode.toLowerCase().includes(cleanSearch)
+      );
+    }
+    return list;
+  }
+
+  try {
+    let rows: any[];
+    if (validProdiId) {
+      rows = await sql`
+        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
+        FROM mata_kuliah mk
+        JOIN prodi p ON mk.prodi_id = p.id
+        WHERE mk.prodi_id = ${validProdiId}
+        ORDER BY mk.semester ASC, mk.kode ASC
+      `;
+    } else {
+      rows = await sql`
+        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
+        FROM mata_kuliah mk
+        JOIN prodi p ON mk.prodi_id = p.id
+        ORDER BY p.kode ASC, mk.semester ASC, mk.kode ASC
+      `;
+    }
+
+    let result = rows as MataKuliah[];
+    if (cleanSearch) {
+      result = result.filter(m => 
+        m.nama.toLowerCase().includes(cleanSearch) || 
+        m.kode.toLowerCase().includes(cleanSearch)
+      );
+    }
+    return result;
+  } catch (error) {
+    console.error('getMataKuliahList error:', error);
+    return mockMataKuliah;
+  }
+}
+
+export async function getMataKuliahById(id: string): Promise<MataKuliah | null> {
+  const sql = getDbClient();
+  if (!sql || !isValidUuid(id)) {
+    return mockMataKuliah.find(m => m.id === id) || null;
+  }
+
+  try {
+    const rows = await sql`
+      SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
+      FROM mata_kuliah mk
+      JOIN prodi p ON mk.prodi_id = p.id
+      WHERE mk.id = ${id}
+      LIMIT 1
+    `;
+    return (rows[0] as MataKuliah) || null;
+  } catch (error) {
+    console.error('getMataKuliahById error:', error);
+    return null;
+  }
+}
+
+export async function createMataKuliah(data: {
+  kode: string;
+  nama: string;
+  sks: number;
+  semester: number;
+  prodi_id: string;
+}): Promise<MataKuliah> {
+  const sql = getDbClient();
+  if (!sql) {
+    const prodi = mockProdis.find(p => p.id === data.prodi_id);
+    const newMk: MataKuliah = {
+      id: `mk-${Date.now()}`,
+      kode: data.kode.trim().toUpperCase(),
+      nama: data.nama.trim(),
+      sks: Number(data.sks) || 3,
+      semester: Number(data.semester) || 1,
+      prodi_id: data.prodi_id,
+      prodi_nama: prodi?.nama || 'Informatika',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    mockMataKuliah.push(newMk);
+    return newMk;
+  }
+
+  try {
+    const rows = await sql`
+      INSERT INTO mata_kuliah (kode, nama, sks, semester, prodi_id)
+      VALUES (${data.kode.trim().toUpperCase()}, ${data.nama.trim()}, ${Number(data.sks) || 3}, ${Number(data.semester) || 1}, ${data.prodi_id})
+      RETURNING id, kode, nama, sks, semester, prodi_id, is_active, created_at, updated_at
+    `;
+    const prodi = await sql`SELECT nama FROM prodi WHERE id = ${data.prodi_id}`;
+    return {
+      ...rows[0],
+      prodi_nama: prodi[0]?.nama || ''
+    } as MataKuliah;
+  } catch (error) {
+    console.error('createMataKuliah error:', error);
+    throw error;
+  }
+}
+
+export async function updateMataKuliah(id: string, data: Partial<MataKuliah>): Promise<MataKuliah | null> {
+  const sql = getDbClient();
+  if (!sql || !isValidUuid(id)) {
+    const index = mockMataKuliah.findIndex(m => m.id === id);
+    if (index >= 0) {
+      mockMataKuliah[index] = { ...mockMataKuliah[index], ...data, updated_at: new Date().toISOString() };
+      return mockMataKuliah[index];
+    }
+    return null;
+  }
+
+  try {
+    const rows = await sql`
+      UPDATE mata_kuliah SET
+        kode = COALESCE(${data.kode?.trim().toUpperCase()}, kode),
+        nama = COALESCE(${data.nama?.trim()}, nama),
+        sks = COALESCE(${data.sks !== undefined ? Number(data.sks) : null}, sks),
+        semester = COALESCE(${data.semester !== undefined ? Number(data.semester) : null}, semester),
+        prodi_id = COALESCE(${data.prodi_id}, prodi_id),
+        is_active = COALESCE(${data.is_active !== undefined ? data.is_active : null}, is_active),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
+      RETURNING id, kode, nama, sks, semester, prodi_id, is_active, created_at, updated_at
+    `;
+    if (rows.length === 0) return null;
+    const prodi = await sql`SELECT nama FROM prodi WHERE id = ${rows[0].prodi_id}`;
+    return {
+      ...rows[0],
+      prodi_nama: prodi[0]?.nama || ''
+    } as MataKuliah;
+  } catch (error) {
+    console.error('updateMataKuliah error:', error);
+    throw error;
+  }
+}
+
+export async function deleteMataKuliah(id: string): Promise<boolean> {
+  const sql = getDbClient();
+  if (!sql || !isValidUuid(id)) {
+    mockMataKuliah = mockMataKuliah.filter(m => m.id !== id);
+    return true;
+  }
+
+  try {
+    await sql`DELETE FROM mata_kuliah WHERE id = ${id}`;
+    return true;
+  } catch (error) {
+    console.error('deleteMataKuliah error:', error);
+    return false;
+  }
+}
+
+// ==========================================
+// REVIEW SOAL FORMS (FORM 047)
+// ==========================================
+
+export async function getAllReviewSoalForms(filters?: {
+  prodiId?: string;
+  search?: string;
+  dosenId?: string;
+}): Promise<ReviewSoalFormData[]> {
+  const sql = getDbClient();
+  const validProdiId = filters?.prodiId && filters.prodiId !== 'ALL' && isValidUuid(filters.prodiId) ? filters.prodiId : undefined;
+  const search = filters?.search?.trim().toLowerCase();
+
+  if (!sql) {
+    let list = mockReviewSoalForms;
+    if (validProdiId) list = list.filter(f => f.prodi_id === validProdiId);
+    if (search) {
+      list = list.filter(f => 
+        f.nama_mk?.toLowerCase().includes(search) ||
+        f.kode_mk?.toLowerCase().includes(search) ||
+        f.dosen_pengampu?.toLowerCase().includes(search) ||
+        f.peninjau_nama?.toLowerCase().includes(search)
+      );
+    }
+    return list;
+  }
+
+  try {
+    let rows: any[];
+    if (validProdiId) {
+      rows = await sql`
+        SELECT 
+          rf.id, rf.no_dokumen, rf.prodi_id, p.nama as prodi_nama,
+          rf.tahun_akademik_id, ta.tahun_ajaran, rf.semester_tipe,
+          rf.mata_kuliah_id, rf.nama_mk, rf.kode_mk, rf.semester_mk, rf.sks_mk,
+          rf.dosen_pengampu, rf.waktu_peninjauan, rf.tanggal_peninjauan, rf.kota_peninjauan,
+          rf.peninjau_dosen_id, rf.peninjau_nama, rf.peninjau_nik, rf.peninjau_signature_url, rf.peninjau_signed_at,
+          rf.kaprodi_dosen_id, rf.kaprodi_nama, rf.kaprodi_nik, rf.kaprodi_signature_url, rf.kaprodi_signed_at,
+          rf.status, rf.catatan_umum, rf.created_at, rf.updated_at
+        FROM review_soal_forms rf
+        JOIN prodi p ON rf.prodi_id = p.id
+        JOIN tahun_akademik ta ON rf.tahun_akademik_id = ta.id
+        WHERE rf.prodi_id = ${validProdiId}
+        ORDER BY rf.created_at DESC
+      `;
+    } else {
+      rows = await sql`
+        SELECT 
+          rf.id, rf.no_dokumen, rf.prodi_id, p.nama as prodi_nama,
+          rf.tahun_akademik_id, ta.tahun_ajaran, rf.semester_tipe,
+          rf.mata_kuliah_id, rf.nama_mk, rf.kode_mk, rf.semester_mk, rf.sks_mk,
+          rf.dosen_pengampu, rf.waktu_peninjauan, rf.tanggal_peninjauan, rf.kota_peninjauan,
+          rf.peninjau_dosen_id, rf.peninjau_nama, rf.peninjau_nik, rf.peninjau_signature_url, rf.peninjau_signed_at,
+          rf.kaprodi_dosen_id, rf.kaprodi_nama, rf.kaprodi_nik, rf.kaprodi_signature_url, rf.kaprodi_signed_at,
+          rf.status, rf.catatan_umum, rf.created_at, rf.updated_at
+        FROM review_soal_forms rf
+        JOIN prodi p ON rf.prodi_id = p.id
+        JOIN tahun_akademik ta ON rf.tahun_akademik_id = ta.id
+        ORDER BY rf.created_at DESC
+      `;
+    }
+
+    const formsWithItems: ReviewSoalFormData[] = await Promise.all(
+      rows.map(async (form: any) => {
+        const items = await sql`
+          SELECT id, nomor, poin_peninjauan, is_sesuai, keterangan
+          FROM review_soal_items
+          WHERE review_soal_id = ${form.id}
+          ORDER BY nomor ASC
+        `;
+        return {
+          ...form,
+          tanggal_peninjauan: formatDateForClient(form.tanggal_peninjauan),
+          items: (items.length > 0 ? items : DEFAULT_REVIEW_SOAL_POINTS) as ReviewSoalItem[],
+        };
+      })
+    );
+
+    let result = formsWithItems;
+    if (search) {
+      result = result.filter(f => 
+        f.nama_mk?.toLowerCase().includes(search) ||
+        f.kode_mk?.toLowerCase().includes(search) ||
+        f.dosen_pengampu?.toLowerCase().includes(search) ||
+        f.peninjau_nama?.toLowerCase().includes(search)
+      );
+    }
+
+    return result;
+  } catch (error) {
+    console.error('getAllReviewSoalForms error:', error);
+    return mockReviewSoalForms;
+  }
+}
+
+export async function getReviewSoalFormById(id: string): Promise<ReviewSoalFormData | null> {
+  const sql = getDbClient();
+  if (!sql || !isValidUuid(id)) {
+    const found = mockReviewSoalForms.find(f => f.id === id);
+    return found || null;
+  }
+
+  try {
+    const rows = await sql`
+      SELECT 
+        rf.id, rf.no_dokumen, rf.prodi_id, p.nama as prodi_nama,
+        rf.tahun_akademik_id, ta.tahun_ajaran, rf.semester_tipe,
+        rf.mata_kuliah_id, rf.nama_mk, rf.kode_mk, rf.semester_mk, rf.sks_mk,
+        rf.dosen_pengampu, rf.waktu_peninjauan, rf.tanggal_peninjauan, rf.kota_peninjauan,
+        rf.peninjau_dosen_id, rf.peninjau_nama, rf.peninjau_nik, rf.peninjau_signature_url, rf.peninjau_signed_at,
+        rf.kaprodi_dosen_id, rf.kaprodi_nama, rf.kaprodi_nik, rf.kaprodi_signature_url, rf.kaprodi_signed_at,
+        rf.status, rf.catatan_umum, rf.created_at, rf.updated_at
+      FROM review_soal_forms rf
+      JOIN prodi p ON rf.prodi_id = p.id
+      JOIN tahun_akademik ta ON rf.tahun_akademik_id = ta.id
+      WHERE rf.id = ${id}
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) return null;
+    const form = rows[0];
+
+    const items = await sql`
+      SELECT id, nomor, poin_peninjauan, is_sesuai, keterangan
+      FROM review_soal_items
+      WHERE review_soal_id = ${id}
+      ORDER BY nomor ASC
+    `;
+
+    return {
+      ...form,
+      tanggal_peninjauan: formatDateForClient(form.tanggal_peninjauan),
+      items: (items.length > 0 ? items : DEFAULT_REVIEW_SOAL_POINTS) as ReviewSoalItem[],
+    } as ReviewSoalFormData;
+  } catch (error) {
+    console.error('getReviewSoalFormById error:', error);
+    return null;
+  }
+}
+
+export async function saveReviewSoalForm(data: ReviewSoalFormData): Promise<ReviewSoalFormData> {
+  const sql = getDbClient();
+  const formId = data.id || `rs-${Date.now()}`;
+
+  if (!sql) {
+    const prodi = mockProdis.find(p => p.id === data.prodi_id);
+    const ta = mockTahunAkademik.find(t => t.id === data.tahun_akademik_id);
+
+    const completeForm: ReviewSoalFormData = {
+      ...data,
+      id: formId,
+      prodi_nama: prodi?.nama || 'Informatika',
+      tahun_ajaran: ta?.tahun_ajaran || '2026/2027',
+      items: data.items && data.items.length > 0 ? data.items : DEFAULT_REVIEW_SOAL_POINTS,
+      created_at: data.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const existingIndex = mockReviewSoalForms.findIndex(f => f.id === formId);
+    if (existingIndex >= 0) {
+      mockReviewSoalForms[existingIndex] = completeForm;
+    } else {
+      mockReviewSoalForms.unshift(completeForm);
+    }
+    return completeForm;
+  }
+
+  try {
+    const isNew = !data.id || !isValidUuid(data.id);
+    const safeTanggalPeninjauan = formatDateForDb(data.tanggal_peninjauan, new Date().toISOString().split('T')[0]);
+    const safeStatus = (['DRAFT', 'SUBMITTED', 'VERIFIED'].includes(data.status) ? data.status : 'SUBMITTED');
+    const validMkId = data.mata_kuliah_id && isValidUuid(data.mata_kuliah_id) ? data.mata_kuliah_id : null;
+    const validPeninjauDosenId = data.peninjau_dosen_id && isValidUuid(data.peninjau_dosen_id) ? data.peninjau_dosen_id : null;
+    const validKaprodiDosenId = data.kaprodi_dosen_id && isValidUuid(data.kaprodi_dosen_id) ? data.kaprodi_dosen_id : null;
+
+    let currentFormId: string;
+
+    if (isNew) {
+      const res = await sql`
+        INSERT INTO review_soal_forms (
+          no_dokumen, prodi_id, tahun_akademik_id, semester_tipe,
+          mata_kuliah_id, nama_mk, kode_mk, semester_mk, sks_mk,
+          dosen_pengampu, waktu_peninjauan, tanggal_peninjauan, kota_peninjauan,
+          peninjau_dosen_id, peninjau_nama, peninjau_nik, peninjau_signature_url, peninjau_signed_at,
+          kaprodi_dosen_id, kaprodi_nama, kaprodi_nik, kaprodi_signature_url, kaprodi_signed_at,
+          status, catatan_umum
+        ) VALUES (
+          ${data.no_dokumen || '047/FORM/PDK/FT/2023'},
+          ${data.prodi_id},
+          ${data.tahun_akademik_id},
+          ${data.semester_tipe || 'GASAL'},
+          ${validMkId},
+          ${data.nama_mk},
+          ${data.kode_mk},
+          ${String(data.semester_mk || '1')},
+          ${Number(data.sks_mk) || 3},
+          ${data.dosen_pengampu},
+          ${data.waktu_peninjauan || 'UJIAN TENGAH SEMESTER (UTS)'},
+          ${safeTanggalPeninjauan},
+          ${data.kota_peninjauan || 'Surabaya'},
+          ${validPeninjauDosenId},
+          ${data.peninjau_nama || '-'},
+          ${data.peninjau_nik || '-'},
+          ${data.peninjau_signature_url || null},
+          ${data.peninjau_signed_at || null},
+          ${validKaprodiDosenId},
+          ${data.kaprodi_nama || '-'},
+          ${data.kaprodi_nik || '-'},
+          ${data.kaprodi_signature_url || null},
+          ${data.kaprodi_signed_at || null},
+          ${safeStatus},
+          ${data.catatan_umum || ''}
+        )
+        RETURNING id
+      `;
+      currentFormId = res[0].id;
+    } else {
+      currentFormId = data.id!;
+      await sql`
+        UPDATE review_soal_forms SET
+          no_dokumen = ${data.no_dokumen || '047/FORM/PDK/FT/2023'},
+          prodi_id = ${data.prodi_id},
+          tahun_akademik_id = ${data.tahun_akademik_id},
+          semester_tipe = ${data.semester_tipe || 'GASAL'},
+          mata_kuliah_id = ${validMkId},
+          nama_mk = ${data.nama_mk},
+          kode_mk = ${data.kode_mk},
+          semester_mk = ${String(data.semester_mk || '1')},
+          sks_mk = ${Number(data.sks_mk) || 3},
+          dosen_pengampu = ${data.dosen_pengampu},
+          waktu_peninjauan = ${data.waktu_peninjauan || 'UJIAN TENGAH SEMESTER (UTS)'},
+          tanggal_peninjauan = ${safeTanggalPeninjauan},
+          kota_peninjauan = ${data.kota_peninjauan || 'Surabaya'},
+          peninjau_dosen_id = ${validPeninjauDosenId},
+          peninjau_nama = ${data.peninjau_nama || '-'},
+          peninjau_nik = ${data.peninjau_nik || '-'},
+          peninjau_signature_url = ${data.peninjau_signature_url || null},
+          peninjau_signed_at = ${data.peninjau_signed_at || null},
+          kaprodi_dosen_id = ${validKaprodiDosenId},
+          kaprodi_nama = ${data.kaprodi_nama || '-'},
+          kaprodi_nik = ${data.kaprodi_nik || '-'},
+          kaprodi_signature_url = ${data.kaprodi_signature_url || null},
+          kaprodi_signed_at = ${data.kaprodi_signed_at || null},
+          status = ${safeStatus},
+          catatan_umum = ${data.catatan_umum || ''},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${currentFormId}
+      `;
+    }
+
+    // Replace items
+    await sql`DELETE FROM review_soal_items WHERE review_soal_id = ${currentFormId}`;
+
+    const itemsToSave = data.items && data.items.length > 0 ? data.items : DEFAULT_REVIEW_SOAL_POINTS;
+    for (let i = 0; i < itemsToSave.length; i++) {
+      const item = itemsToSave[i];
+      await sql`
+        INSERT INTO review_soal_items (review_soal_id, nomor, poin_peninjauan, is_sesuai, keterangan)
+        VALUES (
+          ${currentFormId},
+          ${item.nomor || i + 1},
+          ${item.poin_peninjauan},
+          ${item.is_sesuai || ''},
+          ${item.keterangan || ''}
+        )
+      `;
+    }
+
+    const updated = await getReviewSoalFormById(currentFormId);
+    return updated!;
+  } catch (error) {
+    console.error('saveReviewSoalForm error:', error);
+    throw error;
+  }
+}
+
+export async function deleteReviewSoalForm(id: string): Promise<boolean> {
+  const sql = getDbClient();
+  if (!sql || !isValidUuid(id)) {
+    mockReviewSoalForms = mockReviewSoalForms.filter(f => f.id !== id);
+    return true;
+  }
+
+  try {
+    await sql`DELETE FROM review_soal_forms WHERE id = ${id}`;
+    return true;
+  } catch (error) {
+    console.error('deleteReviewSoalForm error:', error);
+    return false;
+  }
+}
+

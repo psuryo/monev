@@ -1,4 +1,5 @@
 export type SemesterType = 'GASAL' | 'GENAP';
+export type SemesterRevSoalType = 'GASAL' | 'GENAP' | 'SISIPAN';
 export type JenisPertemuanType = 'PRA_KRS' | 'SEBELUM_UTS' | 'SEBELUM_UAS' | 'KHS' | 'SEBELUM_UTS_UAS';
 export type FormStatusType = 'DRAFT' | 'SUBMITTED' | 'VERIFIED';
 
@@ -29,9 +30,22 @@ export interface Mahasiswa {
   angkatan: number;
 }
 
+export interface MataKuliah {
+  id: string;
+  kode: string;
+  nama: string;
+  sks: number;
+  semester: number;
+  prodi_id: string;
+  prodi_nama?: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface TahunAkademik {
   id: string;
-  tahun_ajaran: string; // e.g. "2024/2025"
+  tahun_ajaran: string; // e.g. "2026/2027"
   semester: SemesterType;
   is_active: boolean;
 }
@@ -97,3 +111,64 @@ export interface MonevFormData {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface ReviewSoalItem {
+  id?: string;
+  nomor: number;
+  poin_peninjauan: string;
+  is_sesuai: string; // 'YA' | 'TIDAK' | ''
+  keterangan: string;
+}
+
+export interface ReviewSoalFormData {
+  id?: string;
+  no_dokumen: string; // '047/FORM/PDK/FT/2023'
+  prodi_id: string;
+  prodi_nama?: string;
+  tahun_akademik_id: string;
+  tahun_ajaran?: string;
+  semester_tipe: SemesterRevSoalType | string;
+  
+  mata_kuliah_id?: string | null;
+  nama_mk: string;
+  kode_mk: string;
+  semester_mk: string | number;
+  sks_mk?: number;
+  
+  dosen_pengampu: string;
+  waktu_peninjauan: string; // 'UJIAN TENGAH SEMESTER (UTS)' | 'UJIAN AKHIR SEMESTER (UAS)' | string
+  tanggal_peninjauan: string;
+  kota_peninjauan?: string;
+  
+  peninjau_dosen_id?: string | null;
+  peninjau_nama: string;
+  peninjau_nik: string;
+  peninjau_signature_url?: string | null;
+  peninjau_signed_at?: string | null;
+  
+  kaprodi_dosen_id?: string | null;
+  kaprodi_nama: string;
+  kaprodi_nik: string;
+  kaprodi_signature_url?: string | null;
+  kaprodi_signed_at?: string | null;
+  
+  status: FormStatusType | string;
+  catatan_umum?: string;
+  
+  items: ReviewSoalItem[];
+  
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const DEFAULT_REVIEW_SOAL_POINTS: { nomor: number; poin_peninjauan: string; is_sesuai: string; keterangan: string }[] = [
+  { nomor: 1, poin_peninjauan: 'BAP sesuai dengan RPKPS', is_sesuai: 'YA', keterangan: '' },
+  { nomor: 2, poin_peninjauan: '“Pelaksanaan” sesuai dengan “Rencana dalam BAP', is_sesuai: 'YA', keterangan: '' },
+  { nomor: 3, poin_peninjauan: '“Rencana” dalam BAP tuntas dilaksanakan', is_sesuai: 'YA', keterangan: '' },
+  { nomor: 4, poin_peninjauan: 'Metode pembelajaran untuk mencapai kompetensi (dalam BAP) sesuai dengan RPKPS', is_sesuai: 'YA', keterangan: '' },
+  { nomor: 5, poin_peninjauan: 'Materi soal ujian sesuai dengan pokok bahasan dalam BAP', is_sesuai: 'YA', keterangan: '' },
+  { nomor: 6, poin_peninjauan: 'Alokasi waktu untuk mengerjakan soal ujian memadai', is_sesuai: 'YA', keterangan: '' },
+  { nomor: 7, poin_peninjauan: 'Kesalahan pengetikan dalam soal ujian', is_sesuai: 'TIDAK', keterangan: '' },
+  { nomor: 8, poin_peninjauan: 'Catatan lain-lain', is_sesuai: '', keterangan: '' },
+];
+
