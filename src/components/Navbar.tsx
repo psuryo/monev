@@ -90,6 +90,18 @@ export function Navbar({ isDbConnected }: { isDbConnected?: boolean }) {
             </Link>
 
             <Link
+              href="/monev/monitoring"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                pathname.startsWith('/monev/monitoring') || pathname.startsWith('/perwalian/monitoring')
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-bold'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Monitoring Konsultasi
+            </Link>
+
+            <Link
               href="/mata-kuliah"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                 pathname.startsWith('/mata-kuliah')
@@ -100,6 +112,7 @@ export function Navbar({ isDbConnected }: { isDbConnected?: boolean }) {
               <FileCheck2 className="w-3.5 h-3.5 text-indigo-500" />
               Mata Kuliah
             </Link>
+
 
             <Link
               href="/review-soal"

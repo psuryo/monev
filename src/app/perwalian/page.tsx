@@ -24,10 +24,13 @@ import {
   RefreshCw,
   X,
   Building2,
-  Calendar
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Mahasiswa, Prodi, Dosen } from '@/types/monev';
+import { StudentConsultationTracker } from '@/components/StudentConsultationTracker';
+
 
 export default function PerwalianManagementPage() {
   const { data: session } = useSession();
@@ -43,8 +46,9 @@ export default function PerwalianManagementPage() {
   const [loading, setLoading] = useState(true);
   const [isDbConnected, setIsDbConnected] = useState(false);
 
-  // Active Tab: 'my-advisees' | 'pool'
-  const [activeTab, setActiveTab] = useState<'my-advisees' | 'pool'>('my-advisees');
+  // Active Tab: 'my-advisees' | 'pool' | 'monitoring'
+  const [activeTab, setActiveTab] = useState<'my-advisees' | 'pool' | 'monitoring'>('my-advisees');
+
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -470,6 +474,19 @@ export default function PerwalianManagementPage() {
 
             <button
               type="button"
+              onClick={() => setActiveTab('monitoring')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'monitoring'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              <Clock className="w-4 h-4 text-emerald-500" />
+              Monitoring Status Konsultasi
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab('pool')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'pool'
@@ -481,6 +498,7 @@ export default function PerwalianManagementPage() {
               Pool Mahasiswa / Student Body ({allStudents.length})
             </button>
           </div>
+
 
           <div className="flex items-center gap-2">
             <button
@@ -504,8 +522,9 @@ export default function PerwalianManagementPage() {
 
         </div>
 
-        {/* Global Filter Bar */}
-        <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs mb-6 flex flex-wrap gap-3 items-center justify-between">
+        {/* Global Filter Bar (Hidden in Monitoring Tab as it has its own comprehensive filters) */}
+        {activeTab !== 'monitoring' && (
+          <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs mb-6 flex flex-wrap gap-3 items-center justify-between">
           
           <div className="flex flex-wrap items-center gap-3 grow max-w-3xl">
             {/* Search */}
@@ -596,6 +615,15 @@ export default function PerwalianManagementPage() {
           )}
 
         </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 0: MONITORING STATUS KONSULTASI / PERWALIAN */}
+        {/* ========================================================================= */}
+        {activeTab === 'monitoring' && (
+          <StudentConsultationTracker />
+        )}
+
 
         {/* ========================================================================= */}
         {/* TAB 1: MAHASISWA BIMBINGAN SAYA */}

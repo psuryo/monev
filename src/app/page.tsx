@@ -22,14 +22,17 @@ import {
   Layers,
   ArrowRight,
   Sparkles,
-  ClipboardList
+  ClipboardList,
+  Clock
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { MonevFormData, ReviewSoalFormData, Prodi } from '@/types/monev';
+import { StudentConsultationTracker } from '@/components/StudentConsultationTracker';
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<'perwalian' | 'reviewSoal'>('perwalian');
+  const [activeTab, setActiveTab] = useState<'perwalian' | 'monitoring' | 'reviewSoal'>('perwalian');
+
 
   // Data States
   const [monevForms, setMonevForms] = useState<MonevFormData[]>([]);
@@ -193,16 +196,17 @@ export default function DashboardPage() {
                 <ChevronRight className="w-3.5 h-3.5 opacity-70" />
               </Link>
 
-              <Link
-                href="/review-soal/new"
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold p-3 rounded-xl flex items-center justify-between shadow-xs transition-all hover:scale-[1.02]"
+              <button
+                type="button"
+                onClick={() => setActiveTab('monitoring')}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold p-3 rounded-xl flex items-center justify-between shadow-xs transition-all hover:scale-[1.02] cursor-pointer"
               >
                 <div className="flex items-center gap-2">
-                  <FileCheck2 className="w-4 h-4 shrink-0" />
-                  <span>+ Form Review Soal (047)</span>
+                  <Clock className="w-4 h-4 shrink-0" />
+                  <span>Monitoring Konsultasi</span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 opacity-70" />
-              </Link>
+              </button>
 
               <Link
                 href="/perwalian"
@@ -216,16 +220,17 @@ export default function DashboardPage() {
               </Link>
 
               <Link
-                href="/mata-kuliah"
-                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-semibold p-3 rounded-xl flex items-center justify-between transition-all"
+                href="/review-soal/new"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold p-3 rounded-xl flex items-center justify-between shadow-xs transition-all hover:scale-[1.02]"
               >
                 <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 shrink-0" />
-                  <span>Master Mata Kuliah</span>
+                  <FileCheck2 className="w-4 h-4 shrink-0" />
+                  <span>+ Review Soal (047)</span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 opacity-70" />
               </Link>
             </div>
+
           </div>
         </div>
 
@@ -284,7 +289,7 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Dual Module Tab Navigation */}
+        {/* Tri-Module Tab Navigation */}
         <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-slate-200 dark:border-slate-800 pb-2">
           <button
             type="button"
@@ -296,11 +301,29 @@ export default function DashboardPage() {
             }`}
           >
             <FileText className="w-4 h-4" />
-            Monev Perwalian Mahasiswa
+            Monev Perwalian (Daftar Form)
             <span className={`px-2 py-0.2 rounded-full text-[10px] font-extrabold ${
               activeTab === 'perwalian' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
             }`}>
               {monevForms.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('monitoring')}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'monitoring'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+            }`}
+          >
+            <Clock className="w-4 h-4 text-emerald-400" />
+            Monitoring Status Konsultasi (Cek Belum Konsultasi)
+            <span className={`px-2 py-0.2 rounded-full text-[10px] font-extrabold ${
+              activeTab === 'monitoring' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+            }`}>
+              Live Tracker
             </span>
           </button>
 
@@ -314,7 +337,7 @@ export default function DashboardPage() {
             }`}
           >
             <FileCheck2 className="w-4 h-4" />
-            Monev Peninjauan Soal Ujian & BAP (RPKPS)
+            Review Soal & BAP (047)
             <span className={`px-2 py-0.2 rounded-full text-[10px] font-extrabold ${
               activeTab === 'reviewSoal' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
             }`}>
@@ -323,11 +346,19 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Filters & Search */}
-        <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs mb-6 flex flex-wrap gap-3 items-center justify-between">
+        {/* TAB 0: MONITORING KONSULTASI TRACKER */}
+        {activeTab === 'monitoring' && (
+          <StudentConsultationTracker />
+        )}
+
+
+        {/* Filters & Search (Only shown for perwalian & reviewSoal tabs) */}
+        {activeTab !== 'monitoring' && (
+          <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs mb-6 flex flex-wrap gap-3 items-center justify-between">
           <div className="flex flex-wrap items-center gap-3 grow max-w-2xl">
             {/* Search Input */}
             <div className="relative grow min-w-[200px]">
+
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
@@ -384,6 +415,8 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+        )}
+
 
         {/* TAB 1: PERWALIAN FORMS TABLE */}
         {activeTab === 'perwalian' && (

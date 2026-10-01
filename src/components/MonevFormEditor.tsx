@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { 
   Save, 
@@ -35,7 +35,9 @@ interface MonevFormEditorProps {
 
 export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEditorProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
+
 
   // Master Data States
   const [prodis, setProdis] = useState<Prodi[]>([]);
@@ -192,6 +194,64 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
 
     loadMahasiswas();
   }, [formData.dosen_id, formData.prodi_id]);
+
+  // Handle prefilled query parameters (from Monitoring module or external links)
+  useEffect(() => {
+    if (isEditing || !searchParams) return;
+    const prefilledStage = searchParams.get('stage');
+    const prefilledTa = searchParams.get('ta');
+
+    if (prefilledStage && ['PRA_KRS', 'SEBELUM_UTS', 'SEBELUM_UAS', 'KHS', 'SEBELUM_UTS_UAS'].includes(prefilledStage)) {
+      setFormData(prev => ({
+        ...prev,
+        jenis_pertemuan: prefilledStage as any
+      }));
+    }
+
+    if (prefilledTa && tahunAkademiks.length > 0) {
+      const foundTa = tahunAkademiks.find(t => t.id === prefilledTa);
+      if (foundTa) {
+        setFormData(prev => ({
+          ...prev,
+          tahun_akademik_id: foundTa.id,
+          tahun_ajaran: foundTa.tahun_ajaran,
+          semester: foundTa.semester
+        }));
+      }
+    }
+  }, [searchParams, tahunAkademiks, isEditing]);
+
+  // Handle prefilled student attendees from query param
+  useEffect(() => {
+    if (isEditing || !searchParams || mahasiswas.length === 0) return;
+    const prefilledStudents = searchParams.get('students');
+    if (!prefilledStudents) return;
+
+    const studentIds = prefilledStudents.split(',').map(s => s.trim()).filter(Boolean);
+    const matched = mahasiswas.filter(m => studentIds.includes(m.id) || studentIds.includes(m.nrp));
+    
+    if (matched.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        attendees: matched.map((m, idx) => ({
+          mahasiswa_id: m.id,
+          nrp: m.nrp,
+          nama: m.nama,
+          urutan: idx + 1
+        })),
+        pra_krs: matched.map(m => ({
+          mahasiswa_id: m.id,
+          nrp: m.nrp,
+          nama: m.nama,
+          ips_sebelumnya: '',
+          mk_nilai_d: '-',
+          total_sks_pilihan: 0,
+          perolehan_pk2: '-'
+        }))
+      }));
+    }
+  }, [searchParams, mahasiswas, isEditing]);
+
 
   // Handle Dosen selection
   const handleDosenChange = (dosenId: string) => {

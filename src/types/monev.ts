@@ -172,3 +172,28 @@ export const DEFAULT_REVIEW_SOAL_POINTS: { nomor: number; poin_peninjauan: strin
   { nomor: 8, poin_peninjauan: 'Catatan lain-lain', is_sesuai: '', keterangan: '' },
 ];
 
+export interface StudentConsultationSummary {
+  mahasiswa: Mahasiswa;
+  consultationCount: number;
+  hasPraKrs: boolean;
+  praKrsForm?: MonevFormData;
+  hasSebelumUts: boolean;
+  sebelumUtsForm?: MonevFormData;
+  hasSebelumUas: boolean;
+  sebelumUasForm?: MonevFormData;
+  hasKhs: boolean;
+  khsForm?: MonevFormData;
+  allAttendedForms: MonevFormData[];
+  temuanList: {
+    formId: string;
+    noDokumen: string;
+    tanggal: string;
+    jenis: string;
+    catatan: string;
+  }[];
+  praKrsDetail?: MonevPraKrsItem;
+  lastConsultationDate?: string;
+  status: 'SUDAH' | 'PARSIAL' | 'BELUM';
+}
+
+
