@@ -14,7 +14,6 @@ import {
   Building2, 
   CheckCircle2, 
   FileCheck2, 
-  BookOpen, 
   ChevronRight,
   ShieldCheck,
   Sparkles,
@@ -138,13 +137,6 @@ export default function ReviewSoalListPage() {
               >
                 <PlusCircle className="w-4 h-4" />
                 Buat Formulir Review Baru
-              </Link>
-              <Link
-                href="/mata-kuliah"
-                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all"
-              >
-                <BookOpen className="w-4 h-4" />
-                Kelola Master Mata Kuliah
               </Link>
               <Link
                 href="/"

@@ -16,7 +16,6 @@ import {
   Calendar, 
   HelpCircle, 
   Sparkles, 
-  Plus, 
   Check, 
   X,
   FileCheck2
@@ -390,13 +389,6 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
                 2. Mata Kuliah & Dosen Pengampu
               </h2>
             </div>
-            <Link
-              href="/mata-kuliah"
-              target="_blank"
-              className="text-[11px] font-semibold text-blue-600 hover:underline flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" /> Kelola / Tambah Master MK
-            </Link>
           </div>
 
           <div className="space-y-4">
@@ -623,14 +615,19 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
         <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xs">
           <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
             <UserCheck className="w-5 h-5 text-blue-600" />
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-              4. Pengesahan & Tanda Tangan Digital
-            </h2>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                4. Pengesahan & Tanda Tangan Digital Dosen Peninjau
+              </h2>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Formulir ditandatangani oleh Dosen Peninjau. Ruang tanda tangan Ketua Program Studi tersedia pada dokumen cetak fisik.
+              </p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left: Peninjau */}
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 space-y-3">
+          <div className="max-w-2xl">
+            {/* Dosen Peninjau */}
+            <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                   Dosen Peninjau
@@ -638,39 +635,44 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
                 <button
                   type="button"
                   onClick={handleUseCurrentUserAsPeninjau}
-                  className="text-[11px] font-semibold text-blue-600 hover:underline flex items-center gap-1"
+                  className="text-[11px] font-semibold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <Sparkles className="w-3 h-3" /> Saya Sebagai Peninjau
                 </button>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  Nama Lengkap Peninjau *
-                </label>
-                <input
-                  type="text"
-                  placeholder="Nama beserta gelar"
-                  value={formData.peninjau_nama}
-                  onChange={(e) => setFormData({ ...formData, peninjau_nama: e.target.value })}
-                  className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                    Nama Lengkap Peninjau *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Nama beserta gelar"
+                    value={formData.peninjau_nama}
+                    onChange={(e) => setFormData({ ...formData, peninjau_nama: e.target.value })}
+                    className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  NIK Peninjau *
-                </label>
-                <input
-                  type="text"
-                  placeholder="Nomor Induk Karyawan"
-                  value={formData.peninjau_nik}
-                  onChange={(e) => setFormData({ ...formData, peninjau_nik: e.target.value })}
-                  className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                    NIK Peninjau *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Nomor Induk Karyawan"
+                    value={formData.peninjau_nik}
+                    onChange={(e) => setFormData({ ...formData, peninjau_nik: e.target.value })}
+                    className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
 
               <div className="pt-2">
+                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
+                  Bubuhkan Tanda Tangan Digital Peninjau:
+                </label>
                 <SignatureCanvas
                   initialSignature={formData.peninjau_signature_url}
                   signerName={formData.peninjau_nama || 'Peninjau'}
@@ -678,51 +680,6 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
                     ...prev,
                     peninjau_signature_url: signatureData,
                     peninjau_signed_at: signatureData ? new Date().toISOString() : null
-                  }))}
-                />
-              </div>
-            </div>
-
-            {/* Right: Kaprodi */}
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 space-y-3">
-              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                Ketua Program Studi (Mengetahui)
-              </h3>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  Nama Ketua Program Studi
-                </label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Dr. Ir. Yohanes Surya, M.T."
-                  value={formData.kaprodi_nama}
-                  onChange={(e) => setFormData({ ...formData, kaprodi_nama: e.target.value })}
-                  className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  NIK Kaprodi
-                </label>
-                <input
-                  type="text"
-                  placeholder="Contoh: 581000021"
-                  value={formData.kaprodi_nik}
-                  onChange={(e) => setFormData({ ...formData, kaprodi_nik: e.target.value })}
-                  className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="pt-2">
-                <SignatureCanvas
-                  initialSignature={formData.kaprodi_signature_url}
-                  signerName={formData.kaprodi_nama || 'Ketua Program Studi'}
-                  onSave={(signatureData) => setFormData(prev => ({
-                    ...prev,
-                    kaprodi_signature_url: signatureData,
-                    kaprodi_signed_at: signatureData ? new Date().toISOString() : null
                   }))}
                 />
               </div>

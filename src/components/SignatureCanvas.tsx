@@ -114,7 +114,7 @@ export function SignatureCanvas({
     ctx.font = 'italic 32px "Brush Script MT", "Segoe Script", "Dancing Script", cursive';
     ctx.fillStyle = '#1e3a8a';
     ctx.textAlign = 'center';
-    
+
     // Clean academic titles for aesthetic signature
     const cleanName = signerName.replace(/^(Dr\.|Ir\.|Prof\.|Dra\.|Drs\.)\s*/i, '').split(',')[0].trim();
     ctx.fillText(cleanName || signerName, canvas.width / 2, 72);
@@ -200,7 +200,7 @@ export function SignatureCanvas({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
           <PenLine className="w-3.5 h-3.5 text-blue-600" />
-          Tanda Tangan Digital Wali Studi
+          Tanda Tangan Digital
         </label>
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -251,15 +251,14 @@ export function SignatureCanvas({
       />
 
       {/* Canvas Drop / Draw Box */}
-      <div 
+      <div
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        className={`relative border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center transition-all ${
-          isDragging 
-            ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 scale-[1.01]' 
+        className={`relative border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center transition-all ${isDragging
+            ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 scale-[1.01]'
             : 'border-slate-300 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/50'
-        }`}
+          }`}
       >
         <canvas
           ref={canvasRef}

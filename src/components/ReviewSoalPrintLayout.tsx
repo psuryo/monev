@@ -226,10 +226,14 @@ export function ReviewSoalPrintLayout({ data }: ReviewSoalPrintLayoutProps) {
 
             <div>
               <div className="font-bold border-b border-black inline-block min-w-[200px] pb-0.5">
-                {data.kaprodi_nama || '...................................................'}
+                {data.kaprodi_nama && data.kaprodi_nama.trim() !== '-' && data.kaprodi_nama.trim() !== ''
+                  ? data.kaprodi_nama
+                  : '...................................................'}
               </div>
               <div className="mt-1 text-[10pt]">
-                NIK. {data.kaprodi_nik || '...................................'}
+                NIK. {data.kaprodi_nik && data.kaprodi_nik.trim() !== '-' && data.kaprodi_nik.trim() !== ''
+                  ? data.kaprodi_nik
+                  : '...................................'}
               </div>
             </div>
           </div>
@@ -255,10 +259,14 @@ export function ReviewSoalPrintLayout({ data }: ReviewSoalPrintLayoutProps) {
 
             <div>
               <div className="font-bold border-b border-black inline-block min-w-[200px] pb-0.5">
-                {data.peninjau_nama || '...................................................'}
+                {data.peninjau_nama && data.peninjau_nama.trim() !== '-' && data.peninjau_nama.trim() !== ''
+                  ? data.peninjau_nama
+                  : '...................................................'}
               </div>
               <div className="mt-1 text-[10pt]">
-                NIK {data.peninjau_nik || '...................................'}
+                NIK {data.peninjau_nik && data.peninjau_nik.trim() !== '-' && data.peninjau_nik.trim() !== ''
+                  ? data.peninjau_nik
+                  : '...................................'}
               </div>
             </div>
           </div>
