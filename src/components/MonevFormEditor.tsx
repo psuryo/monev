@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { 
@@ -22,9 +22,16 @@ import {
   Filter, 
   Layers, 
   Lock, 
-  ShieldCheck 
+  ShieldCheck,
+  Search,
+  CheckSquare,
+  Square,
+  X,
+  UserCheck,
+  Building2,
+  ExternalLink
 } from 'lucide-react';
-import { MonevFormData, Prodi, Dosen, Mahasiswa, TahunAkademik } from '@/types/monev';
+import { MonevFormData, Prodi, Dosen, Mahasiswa, TahunAkademik, MonevAttendeeItem } from '@/types/monev';
 import { MonevPrintLayout } from './MonevPrintLayout';
 import { SignatureCanvas } from './SignatureCanvas';
 
@@ -37,7 +44,6 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
-
 
   // Master Data States
   const [prodis, setProdis] = useState<Prodi[]>([]);
@@ -52,6 +58,13 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedTemuanFilter, setSelectedTemuanFilter] = useState<string>('ALL');
+
+  // Pool Picker Modal States
+  const [showPoolModal, setShowPoolModal] = useState(false);
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [modalTabFilter, setModalTabFilter] = useState<'ALL' | 'MY_ADVISEES' | 'AVAILABLE' | 'OTHER'>('ALL');
+  const [modalAngkatanFilter, setModalAngkatanFilter] = useState<string>('ALL');
+  const [modalSelectedStudentIds, setModalSelectedStudentIds] = useState<string[]>([]);
 
   // Form State
   const [formData, setFormData] = useState<MonevFormData>({
@@ -97,19 +110,22 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
       : [],
   });
 
-  // Fetch Master Data
+  // Fetch Master Data & All Students from Pool
   useEffect(() => {
     async function loadMasterData() {
       try {
         setLoadingMaster(true);
-        const [prodiRes, dosenRes, taRes] = await Promise.all([
+        const [prodiRes, dosenRes, taRes, mhsRes] = await Promise.all([
           fetch('/api/prodi').then(r => r.json()),
           fetch('/api/dosen').then(r => r.json()),
           fetch('/api/tahun-akademik').then(r => r.json()),
+          fetch('/api/mahasiswa?all=true').then(r => r.json()),
         ]);
 
         if (prodiRes.success) setProdis(prodiRes.data);
         if (dosenRes.success) setDosens(dosenRes.data);
+        if (mhsRes.success) setMahasiswas(mhsRes.data);
+
         if (taRes.success) {
           setTahunAkademiks(taRes.data);
           // Set default active academic period if not set
@@ -176,24 +192,25 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
     loadMasterData();
   }, []);
 
-  // Fetch Mahasiswas when Dosen / Prodi changes
-  useEffect(() => {
-    async function loadMahasiswas() {
-      try {
-        const url = formData.dosen_id 
-          ? `/api/mahasiswa?dosenId=${formData.dosen_id}` 
-          : '/api/mahasiswa';
-        const res = await fetch(url).then(r => r.json());
-        if (res.success) {
-          setMahasiswas(res.data);
-        }
-      } catch (err) {
-        console.error('Failed to load mahasiswas:', err);
-      }
-    }
+  // Categorized Students from Pool
+  const myAdvisees = useMemo(() => {
+    if (!formData.dosen_id) return [];
+    return mahasiswas.filter(m => m.dosen_wali_id === formData.dosen_id);
+  }, [mahasiswas, formData.dosen_id]);
 
-    loadMahasiswas();
-  }, [formData.dosen_id, formData.prodi_id]);
+  const poolAvailable = useMemo(() => {
+    return mahasiswas.filter(m => !m.dosen_wali_id);
+  }, [mahasiswas]);
+
+  const otherAdvisees = useMemo(() => {
+    if (!formData.dosen_id) return mahasiswas.filter(m => Boolean(m.dosen_wali_id));
+    return mahasiswas.filter(m => m.dosen_wali_id && m.dosen_wali_id !== formData.dosen_id);
+  }, [mahasiswas, formData.dosen_id]);
+
+  const uniqueAngkatans = useMemo(() => {
+    const years = mahasiswas.map(m => m.angkatan).filter(Boolean);
+    return Array.from(new Set(years)).sort((a, b) => b - a);
+  }, [mahasiswas]);
 
   // Handle prefilled query parameters (from Monitoring module or external links)
   useEffect(() => {
@@ -252,7 +269,6 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
     }
   }, [searchParams, mahasiswas, isEditing]);
 
-
   // Handle Dosen selection
   const handleDosenChange = (dosenId: string) => {
     const selected = dosens.find(d => d.id === dosenId);
@@ -293,7 +309,11 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
     }));
   };
 
-  // Attendee Handlers
+  // =========================================================================
+  // ATTENDEES (STUDENT POOL SELECTION ONLY - NO MANUAL TYPING)
+  // =========================================================================
+
+  // Add an empty row for student selection
   const addAttendee = () => {
     setFormData(prev => {
       const nextUrutan = prev.attendees.length + 1;
@@ -304,40 +324,70 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
     });
   };
 
+  // Remove a row
   const removeAttendee = (index: number) => {
     setFormData(prev => {
       const updated = prev.attendees.filter((_, i) => i !== index).map((att, i) => ({
         ...att,
         urutan: i + 1
       }));
-      // Also sync pra-krs
       const updatedPraKrs = prev.pra_krs.filter((_, i) => i !== index);
       return {
         ...prev,
-        attendees: updated,
+        attendees: updated.length > 0 ? updated : [{ mahasiswa_id: '', nrp: '', nama: '', urutan: 1 }],
         pra_krs: updatedPraKrs
       };
     });
   };
 
+  // Update single row with student from pool
   const updateAttendee = (index: number, mahasiswaId: string) => {
+    if (!mahasiswaId) {
+      setFormData(prev => {
+        const updatedAttendees = [...prev.attendees];
+        updatedAttendees[index] = {
+          ...updatedAttendees[index],
+          mahasiswa_id: '',
+          nrp: '',
+          nama: ''
+        };
+        const updatedPraKrs = [...prev.pra_krs];
+        if (updatedPraKrs[index]) {
+          updatedPraKrs[index] = {
+            ...updatedPraKrs[index],
+            mahasiswa_id: '',
+            nrp: '',
+            nama: ''
+          };
+        }
+        return {
+          ...prev,
+          attendees: updatedAttendees,
+          pra_krs: updatedPraKrs
+        };
+      });
+      return;
+    }
+
     const m = mahasiswas.find(item => item.id === mahasiswaId);
+    if (!m) return;
+
     setFormData(prev => {
       const updatedAttendees = [...prev.attendees];
       updatedAttendees[index] = {
         ...updatedAttendees[index],
-        mahasiswa_id: mahasiswaId,
-        nrp: m?.nrp || '',
-        nama: m?.nama || ''
+        mahasiswa_id: m.id,
+        nrp: m.nrp,
+        nama: m.nama
       };
 
       // Automatically sync/add to pra_krs list
       const updatedPraKrs = [...prev.pra_krs];
       if (!updatedPraKrs[index]) {
         updatedPraKrs[index] = {
-          mahasiswa_id: mahasiswaId,
-          nrp: m?.nrp || '',
-          nama: m?.nama || '',
+          mahasiswa_id: m.id,
+          nrp: m.nrp,
+          nama: m.nama,
           ips_sebelumnya: '',
           mk_nilai_d: '-',
           total_sks_pilihan: 0,
@@ -346,9 +396,9 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
       } else {
         updatedPraKrs[index] = {
           ...updatedPraKrs[index],
-          mahasiswa_id: mahasiswaId,
-          nrp: m?.nrp || '',
-          nama: m?.nama || ''
+          mahasiswa_id: m.id,
+          nrp: m.nrp,
+          nama: m.nama
         };
       }
 
@@ -358,9 +408,9 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
         if (oldId && t.mahasiswa_id === oldId) {
           return {
             ...t,
-            mahasiswa_id: mahasiswaId,
-            mahasiswa_nama: m?.nama || '',
-            mahasiswa_nrp: m?.nrp || ''
+            mahasiswa_id: m.id,
+            mahasiswa_nama: m.nama,
+            mahasiswa_nrp: m.nrp
           };
         }
         return t;
@@ -375,47 +425,163 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
     });
   };
 
-  const updateCustomAttendeeName = (index: number, field: 'nama' | 'nrp', value: string) => {
+  // Quick Action: Add all advisees of the active lecturer
+  const handleAddAllMyAdvisees = () => {
+    if (myAdvisees.length === 0) {
+      alert('Tidak ada mahasiswa bimbingan yang terdaftar untuk Dosen Wali ini di database.');
+      return;
+    }
+
     setFormData(prev => {
-      const updated = [...prev.attendees];
-      const customId = updated[index].mahasiswa_id || `custom-${index}`;
-      updated[index] = {
-        ...updated[index],
-        [field]: value,
-        mahasiswa_id: customId
-      };
+      // Map all advisees to attendees
+      const newAttendees: MonevAttendeeItem[] = myAdvisees.map((m, idx) => ({
+        mahasiswa_id: m.id,
+        nrp: m.nrp,
+        nama: m.nama,
+        urutan: idx + 1
+      }));
 
-      // Sync pra-krs
-      const updatedPraKrs = [...prev.pra_krs];
-      if (updatedPraKrs[index]) {
-        updatedPraKrs[index] = {
-          ...updatedPraKrs[index],
-          [field]: value
+      // Preserve existing pra_krs data if already entered for same student
+      const newPraKrs = myAdvisees.map(m => {
+        const existing = prev.pra_krs.find(pk => pk.mahasiswa_id === m.id);
+        if (existing) return existing;
+        return {
+          mahasiswa_id: m.id,
+          nrp: m.nrp,
+          nama: m.nama,
+          ips_sebelumnya: '',
+          mk_nilai_d: '-',
+          total_sks_pilihan: 0,
+          perolehan_pk2: '-'
         };
-      }
-
-      // Sync temuan
-      const updatedTemuan = prev.temuan.map(t => {
-        if (t.mahasiswa_id === customId) {
-          return {
-            ...t,
-            mahasiswa_nama: field === 'nama' ? value : t.mahasiswa_nama,
-            mahasiswa_nrp: field === 'nrp' ? value : t.mahasiswa_nrp
-          };
-        }
-        return t;
       });
 
       return {
         ...prev,
-        attendees: updated,
-        pra_krs: updatedPraKrs,
-        temuan: updatedTemuan
+        attendees: newAttendees,
+        pra_krs: newPraKrs
       };
     });
+
+    setSuccessMessage(`Berhasil memuat ${myAdvisees.length} mahasiswa bimbingan dari pool.`);
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  // Temuan Handlers
+  // Open Multi-Select Modal from Pool
+  const openPoolModal = () => {
+    const currentIds = formData.attendees
+      .map(a => a.mahasiswa_id)
+      .filter(Boolean);
+    setModalSelectedStudentIds(currentIds);
+    setModalSearchQuery('');
+    setModalTabFilter('ALL');
+    setModalAngkatanFilter('ALL');
+    setShowPoolModal(true);
+  };
+
+  // Filter students inside modal
+  const modalFilteredStudents = useMemo(() => {
+    return mahasiswas.filter(m => {
+      // Tab filter
+      if (modalTabFilter === 'MY_ADVISEES' && m.dosen_wali_id !== formData.dosen_id) return false;
+      if (modalTabFilter === 'AVAILABLE' && m.dosen_wali_id) return false;
+      if (modalTabFilter === 'OTHER' && (!m.dosen_wali_id || m.dosen_wali_id === formData.dosen_id)) return false;
+
+      // Angkatan filter
+      if (modalAngkatanFilter !== 'ALL' && String(m.angkatan) !== modalAngkatanFilter) return false;
+
+      // Search query
+      if (modalSearchQuery.trim() !== '') {
+        const q = modalSearchQuery.toLowerCase();
+        const matchNama = m.nama.toLowerCase().includes(q);
+        const matchNrp = m.nrp.toLowerCase().includes(q);
+        const matchProdi = (m.prodi_nama || '').toLowerCase().includes(q);
+        return matchNama || matchNrp || matchProdi;
+      }
+
+      return true;
+    });
+  }, [mahasiswas, modalTabFilter, modalAngkatanFilter, modalSearchQuery, formData.dosen_id]);
+
+  // Toggle selection inside modal
+  const handleToggleStudentInModal = (id: string) => {
+    setModalSelectedStudentIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // Select all visible in modal
+  const handleSelectAllInModal = () => {
+    const visibleIds = modalFilteredStudents.map(m => m.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every(id => modalSelectedStudentIds.includes(id));
+
+    if (allSelected) {
+      setModalSelectedStudentIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    } else {
+      setModalSelectedStudentIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  // Select all lecturer advisees in modal
+  const handleSelectMyAdviseesInModal = () => {
+    const myIds = myAdvisees.map(m => m.id);
+    setModalSelectedStudentIds(prev => Array.from(new Set([...prev, ...myIds])));
+  };
+
+  // Apply students selected in modal to form
+  const handleApplyPoolModalSelection = () => {
+    if (modalSelectedStudentIds.length === 0) {
+      setFormData(prev => ({
+        ...prev,
+        attendees: [{ mahasiswa_id: '', nrp: '', nama: '', urutan: 1 }],
+        pra_krs: []
+      }));
+      setShowPoolModal(false);
+      return;
+    }
+
+    const selectedMhsList = modalSelectedStudentIds
+      .map(id => mahasiswas.find(m => m.id === id))
+      .filter(Boolean) as Mahasiswa[];
+
+    setFormData(prev => {
+      const newAttendees: MonevAttendeeItem[] = selectedMhsList.map((m, idx) => ({
+        mahasiswa_id: m.id,
+        nrp: m.nrp,
+        nama: m.nama,
+        urutan: idx + 1
+      }));
+
+      // Sync pra-krs while preserving existing inputs
+      const newPraKrs = selectedMhsList.map(m => {
+        const existing = prev.pra_krs.find(pk => pk.mahasiswa_id === m.id);
+        if (existing) return existing;
+        return {
+          mahasiswa_id: m.id,
+          nrp: m.nrp,
+          nama: m.nama,
+          ips_sebelumnya: '',
+          mk_nilai_d: '-',
+          total_sks_pilihan: 0,
+          perolehan_pk2: '-'
+        };
+      });
+
+      return {
+        ...prev,
+        attendees: newAttendees,
+        pra_krs: newPraKrs
+      };
+    });
+
+    setShowPoolModal(false);
+    setSuccessMessage(`Berhasil menambahkan ${selectedMhsList.length} mahasiswa dari pool ke formulir.`);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  // =========================================================================
+  // TEMUAN HANDLERS
+  // =========================================================================
   const updateTemuan = (index: number, text: string) => {
     setFormData(prev => {
       const updated = [...prev.temuan];
@@ -439,11 +605,11 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
         };
       } else {
         // Find in attendees first
-        const att = prev.attendees.find(a => (a.mahasiswa_id === targetValue || a.id === targetValue));
+        const att = prev.attendees.find(a => a.mahasiswa_id === targetValue);
         if (att && att.nama) {
           updated[index] = {
             ...updated[index],
-            mahasiswa_id: att.mahasiswa_id || targetValue,
+            mahasiswa_id: att.mahasiswa_id,
             mahasiswa_nama: att.nama,
             mahasiswa_nrp: att.nrp || null,
           };
@@ -540,20 +706,42 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
     }
   };
 
-  // Save Form Handler
+  // Save Form Handler with Strict Validation
   const handleSave = async () => {
     setIsSaving(true);
     setErrorMessage(null);
     setSuccessMessage(null);
 
     try {
+      // 1. Validate attendees
+      const validAttendees = formData.attendees.filter(a => a.mahasiswa_id && a.mahasiswa_id.trim() !== '');
+      if (validAttendees.length === 0) {
+        throw new Error('Minimal harus ada 1 mahasiswa peserta perwalian yang dipilih dari Pool Mahasiswa.');
+      }
+
+      // Check for unselected rows
+      const hasEmptyRow = formData.attendees.some(a => !a.mahasiswa_id || a.mahasiswa_id.trim() === '');
+      if (hasEmptyRow) {
+        throw new Error('Terdapat baris peserta pertemuan yang belum dipilih dari pool mahasiswa. Harap pilih mahasiswa atau hapus baris yang kosong.');
+      }
+
+      // Check for duplicate students
+      const studentIds = formData.attendees.map(a => a.mahasiswa_id);
+      const uniqueIds = new Set(studentIds);
+      if (uniqueIds.size !== studentIds.length) {
+        throw new Error('Terdapat mahasiswa yang dipilih lebih dari satu kali dalam daftar peserta pertemuan.');
+      }
+
       const endpoint = isEditing && formData.id ? `/api/monev/${formData.id}` : '/api/monev';
       const method = isEditing && formData.id ? 'PUT' : 'POST';
 
       const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          attendees: validAttendees
+        })
       });
 
       const json = await res.json();
@@ -562,7 +750,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
         throw new Error(json.error || 'Gagal menyimpan formulir.');
       }
 
-      setSuccessMessage('Formulir Monev berhasil disimpan ke database Neon!');
+      setSuccessMessage('Formulir Monev berhasil disimpan ke database!');
       setTimeout(() => {
         router.push(`/monev/${json.data.id}`);
       }, 800);
@@ -583,7 +771,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/')}
-              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 cursor-pointer"
               title="Kembali ke Dashboard"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -594,7 +782,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                 {isEditing ? 'Edit Formulir Monev Perwalian' : 'Buat Formulir Monev Perwalian Baru'}
               </h1>
               <p className="text-xs text-slate-500">
-                Formulir Resmi FT UKWMS (051/FORM/PDK/FT/2023)
+                Formulir Resmi FT UKWMS (051/FORM/PDK/FT/2023) • Peserta Terhubung ke Pool Mahasiswa
               </p>
             </div>
           </div>
@@ -604,7 +792,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
             <button
               type="button"
               onClick={fillSampleData}
-              className="text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 flex items-center gap-1.5 transition-colors"
+              className="text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 flex items-center gap-1.5 transition-colors cursor-pointer"
               title="Isi form otomatis dengan data sampel"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
@@ -616,7 +804,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
               <button
                 type="button"
                 onClick={() => setActiveTab('form')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
                   activeTab === 'form'
                     ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-2xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -627,7 +815,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
               <button
                 type="button"
                 onClick={() => setActiveTab('preview')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1 ${
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1 cursor-pointer ${
                   activeTab === 'preview'
                     ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-2xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -645,7 +833,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                 setActiveTab('preview');
                 setTimeout(() => window.print(), 300);
               }}
-              className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-700 dark:hover:bg-slate-600 flex items-center gap-1.5 transition-colors"
+              className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-700 dark:hover:bg-slate-600 flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               Cetak / PDF
@@ -656,10 +844,10 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
               type="button"
               disabled={isSaving}
               onClick={handleSave}
-              className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <Save className="w-3.5 h-3.5" />
-              {isSaving ? 'Menyimpan...' : 'Simpan ke Database'}
+              {isSaving ? 'Menyimpan...' : 'Simpan Formulir'}
             </button>
           </div>
 
@@ -669,15 +857,15 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
       {/* Notifications */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
         {errorMessage && (
-          <div className="p-3.5 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-sm flex items-center gap-2 mb-4">
+          <div className="p-3.5 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-sm flex items-center gap-2 mb-4 animate-fadeIn">
             <AlertCircle className="w-4 h-4 shrink-0" />
-            {errorMessage}
+            <span>{errorMessage}</span>
           </div>
         )}
         {successMessage && (
-          <div className="p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-sm flex items-center gap-2 mb-4">
+          <div className="p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-sm flex items-center gap-2 mb-4 animate-fadeIn">
             <CheckCircle className="w-4 h-4 shrink-0" />
-            {successMessage}
+            <span>{successMessage}</span>
           </div>
         )}
       </div>
@@ -794,7 +982,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                       key={option.id}
                       className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                         formData.jenis_pertemuan === option.id
-                          ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200'
+                          ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 ring-1 ring-blue-500'
                           : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300'
                       }`}
                     >
@@ -826,87 +1014,194 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
 
             </div>
 
-            {/* Section 2: Mahasiswa Bimbingan */}
+            {/* Section 2: Mahasiswa Bimbingan (Hanya Pool Mahasiswa - Strict Selection) */}
             <div className="bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-5">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    <Users className="w-4 h-4 text-blue-600" />
-                    2. Mahasiswa Dibawah Perwalian (Peserta Pertemuan)
-                  </h2>
-                  <p className="text-xs text-slate-500">Pilih dari daftar mahasiswa perwalian Anda atau ketik manual.</p>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                      <Users className="w-4 h-4 text-blue-600" />
+                      2. Mahasiswa Dibawah Perwalian (Peserta Pertemuan)
+                    </h2>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      {formData.attendees.filter(a => a.mahasiswa_id).length} Mahasiswa Terpilih
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Mahasiswa wajib dipilih dari <strong>Pool Mahasiswa</strong> atau bimbingan terdaftar. Pengetikan manual dinonaktifkan untuk menjamin integritas data perwalian.</span>
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Multi-Select Pool Picker Modal Button */}
+                  <button
+                    type="button"
+                    onClick={openPoolModal}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                    title="Buka jendela pemilihan mahasiswa dari pool secara cepat"
+                  >
+                    <Search className="w-3.5 h-3.5" /> Pilih dari Pool (Multi-Select)
+                  </button>
+
+                  {/* One-click Add All My Advisees */}
+                  {myAdvisees.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleAddAllMyAdvisees}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Masukkan semua mahasiswa bimbingan Anda sekaligus"
+                    >
+                      <UserCheck className="w-3.5 h-3.5" /> Tambah Semua Bimbingan ({myAdvisees.length})
+                    </button>
+                  )}
+
+                  {/* Add 1 Row */}
+                  <button
+                    type="button"
+                    onClick={addAttendee}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Tambah Baris
+                  </button>
+
+                  {/* Manage Pool Link */}
                   <a
                     href="/perwalian"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 font-medium flex items-center gap-1 transition-colors"
-                    title="Buka halaman manajemen perwalian untuk mengambil mahasiswa dari pool"
+                    className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-blue-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-1 transition-colors"
+                    title="Buka master pool mahasiswa jika ingin mendaftarkan mahasiswa baru"
                   >
-                    <User className="w-3.5 h-3.5 text-blue-600" /> Kelola Pool Mahasiswa
+                    <ExternalLink className="w-3 h-3" /> Kelola Pool
                   </a>
-                  <button
-                    type="button"
-                    onClick={addAttendee}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 font-medium flex items-center gap-1 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Tambah Baris
-                  </button>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {formData.attendees.map((att, idx) => (
-                  <div key={idx} className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                    <span className="w-6 text-center text-xs font-bold text-slate-400">{idx + 1}.</span>
+              {/* Attendees List (Strict Selection from Pool) */}
+              <div className="space-y-2.5">
+                {formData.attendees.map((att, idx) => {
+                  const selectedMhs = mahasiswas.find(m => m.id === att.mahasiswa_id);
+                  const isMyAdvisee = selectedMhs && selectedMhs.dosen_wali_id === formData.dosen_id;
+                  const isUnassignedPool = selectedMhs && !selectedMhs.dosen_wali_id;
 
-                    {/* Select from existing mahasiswa */}
-                    <div className="w-1/3">
-                      <select
-                        value={att.mahasiswa_id}
-                        onChange={(e) => updateAttendee(idx, e.target.value)}
-                        className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
-                      >
-                        <option value="">-- Pilih Mahasiswa --</option>
-                        {mahasiswas.map(m => (
-                          <option key={m.id} value={m.id}>
-                            {m.nrp} - {m.nama}
-                          </option>
-                        ))}
-                      </select>
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-xl border transition-all ${
+                        att.mahasiswa_id 
+                          ? 'bg-slate-50/80 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800' 
+                          : 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 w-full sm:w-1/2">
+                        <span className="w-6 text-center text-xs font-bold text-slate-400 shrink-0">{idx + 1}.</span>
+
+                        {/* Select Mahasiswa strictly from Pool */}
+                        <div className="w-full">
+                          <select
+                            value={att.mahasiswa_id}
+                            onChange={(e) => updateAttendee(idx, e.target.value)}
+                            className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-white dark:bg-slate-950 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                          >
+                            <option value="">-- Pilih Mahasiswa dari Pool / Bimbingan --</option>
+                            
+                            {myAdvisees.length > 0 && (
+                              <optgroup label={`⭐ Bimbingan Anda / Dosen Ini (${myAdvisees.length})`}>
+                                {myAdvisees.map(m => {
+                                  const isAlreadyChosen = formData.attendees.some((a, aIdx) => a.mahasiswa_id === m.id && aIdx !== idx);
+                                  return (
+                                    <option key={m.id} value={m.id} disabled={isAlreadyChosen}>
+                                      {m.nrp} - {m.nama} (Angkatan {m.angkatan}){isAlreadyChosen ? ' — (Sudah Dipilih)' : ''}
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                            )}
+
+                            {poolAvailable.length > 0 && (
+                              <optgroup label={`📋 Pool Mahasiswa Tersedia / Belum Ada Dosen Wali (${poolAvailable.length})`}>
+                                {poolAvailable.map(m => {
+                                  const isAlreadyChosen = formData.attendees.some((a, aIdx) => a.mahasiswa_id === m.id && aIdx !== idx);
+                                  return (
+                                    <option key={m.id} value={m.id} disabled={isAlreadyChosen}>
+                                      {m.nrp} - {m.nama} (Angkatan {m.angkatan}){isAlreadyChosen ? ' — (Sudah Dipilih)' : ''}
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                            )}
+
+                            {otherAdvisees.length > 0 && (
+                              <optgroup label={`👥 Mahasiswa Lainnya (${otherAdvisees.length})`}>
+                                {otherAdvisees.map(m => {
+                                  const isAlreadyChosen = formData.attendees.some((a, aIdx) => a.mahasiswa_id === m.id && aIdx !== idx);
+                                  return (
+                                    <option key={m.id} value={m.id} disabled={isAlreadyChosen}>
+                                      {m.nrp} - {m.nama} (Angkatan {m.angkatan}){isAlreadyChosen ? ' — (Sudah Dipilih)' : ''}
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                            )}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Display Selected Mahasiswa Info (Read-only Badge, No Free Typing) */}
+                      <div className="w-full sm:grow flex items-center justify-between gap-2 pl-9 sm:pl-0">
+                        {att.mahasiswa_id && selectedMhs ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 px-2.5 py-1 rounded-md bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                              {selectedMhs.nrp}
+                            </span>
+                            <span className="text-xs font-semibold text-slate-900 dark:text-white">
+                              {selectedMhs.nama}
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              • {selectedMhs.prodi_nama || 'Informatika'} ({selectedMhs.angkatan})
+                            </span>
+
+                            {isMyAdvisee && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                                <ShieldCheck className="w-3 h-3" /> Bimbingan Anda
+                              </span>
+                            )}
+
+                            {isUnassignedPool && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                <Users className="w-3 h-3" /> Pool Mahasiswa
+                              </span>
+                            )}
+
+                            {!isMyAdvisee && !isUnassignedPool && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                <User className="w-3 h-3" /> Bimbingan: {selectedMhs.dosen_wali_nama || 'Lain'}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 italic">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>Silakan pilih mahasiswa dari menu dropdown pool di sebelah kiri</span>
+                          </div>
+                        )}
+
+                        {/* Remove Row Button */}
+                        {formData.attendees.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeAttendee(idx)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer shrink-0"
+                            title="Hapus baris peserta ini"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-
-                    {/* Or Edit Nama & NRP */}
-                    <div className="grow grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="Nama Mahasiswa"
-                        value={att.nama || ''}
-                        onChange={(e) => updateCustomAttendeeName(idx, 'nama', e.target.value)}
-                        className="text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
-                      />
-                      <input
-                        type="text"
-                        placeholder="NRP"
-                        value={att.nrp || ''}
-                        onChange={(e) => updateCustomAttendeeName(idx, 'nrp', e.target.value)}
-                        className="text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
-                      />
-                    </div>
-
-                    {formData.attendees.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeAttendee(idx)}
-                        className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-950"
-                        title="Hapus baris"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -919,14 +1214,14 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                     3. Temuan Hasil Pertemuan Mahasiswa-Wali Studi (Catatan Bimbingan)
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Hubungkan temuan ke mahasiswa tertentu untuk memudahkan penelusuran (recall), atau pilih <span className="font-semibold text-blue-600 dark:text-blue-400">Umum / Global</span> untuk catatan kelompok.
+                    Hubungkan temuan ke mahasiswa tertentu dari daftar peserta di atas, atau pilih <span className="font-semibold text-blue-600 dark:text-blue-400">Umum / Global</span> untuk catatan kelompok.
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={addTemuanRow}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 font-medium flex items-center gap-1 transition-colors"
+                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 font-medium flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" /> Tambah Temuan
                 </button>
@@ -941,7 +1236,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                 <button
                   type="button"
                   onClick={() => setSelectedTemuanFilter('ALL')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
                     selectedTemuanFilter === 'ALL'
                       ? 'bg-blue-600 text-white shadow-2xs'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
@@ -953,7 +1248,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                 <button
                   type="button"
                   onClick={() => setSelectedTemuanFilter('GLOBAL')}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
                     selectedTemuanFilter === 'GLOBAL'
                       ? 'bg-blue-600 text-white shadow-2xs'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
@@ -962,21 +1257,20 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                   <Globe className="w-3 h-3" /> Global ({formData.temuan.filter(t => !t.mahasiswa_id && t.hasil_temuan.trim() !== '').length})
                 </button>
 
-                {formData.attendees.filter(a => a.nama || a.mahasiswa_id).map((att, aIdx) => {
-                  const attKey = att.mahasiswa_id || `att-${aIdx}`;
+                {formData.attendees.filter(a => a.mahasiswa_id && a.nama).map((att, aIdx) => {
                   const count = formData.temuan.filter(t => t.mahasiswa_id === att.mahasiswa_id && t.hasil_temuan.trim() !== '').length;
                   return (
                     <button
                       key={aIdx}
                       type="button"
-                      onClick={() => setSelectedTemuanFilter(attKey)}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                        selectedTemuanFilter === attKey
+                      onClick={() => setSelectedTemuanFilter(att.mahasiswa_id)}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                        selectedTemuanFilter === att.mahasiswa_id
                           ? 'bg-emerald-600 text-white shadow-2xs'
                           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <User className="w-3 h-3" /> {att.nama || `Peserta #${aIdx + 1}`} ({count})
+                      <User className="w-3 h-3" /> {att.nama} ({count})
                     </button>
                   );
                 })}
@@ -1008,7 +1302,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                             {idx + 1}
                           </span>
 
-                          {/* Target Type Selector */}
+                          {/* Target Type Selector strictly using pool attendees */}
                           <div className="flex items-center gap-1.5">
                             <span className="text-[11px] text-slate-500 font-medium">Kategori / Target:</span>
                             <select
@@ -1018,19 +1312,19 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                             >
                               <option value="GLOBAL">🌐 Umum / Global (Semua Mahasiswa)</option>
                               
-                              {formData.attendees.some(a => a.mahasiswa_id || a.nama) && (
-                                <optgroup label="Peserta Perwalian (Form Ini)">
-                                  {formData.attendees.map((att, aIdx) => (
-                                    <option key={aIdx} value={att.mahasiswa_id || `custom-${aIdx}`}>
-                                      👤 {att.nrp ? `[${att.nrp}] ` : ''}{att.nama || `Peserta #${aIdx + 1}`}
+                              {formData.attendees.some(a => a.mahasiswa_id) && (
+                                <optgroup label="Peserta Perwalian (Terpilih dari Pool)">
+                                  {formData.attendees.filter(a => a.mahasiswa_id).map((att, aIdx) => (
+                                    <option key={aIdx} value={att.mahasiswa_id}>
+                                      👤 [{att.nrp}] {att.nama}
                                     </option>
                                   ))}
                                 </optgroup>
                               )}
 
-                              {mahasiswas.length > 0 && (
-                                <optgroup label="Daftar Mahasiswa Bimbingan Lainnya">
-                                  {mahasiswas
+                              {myAdvisees.length > 0 && (
+                                <optgroup label="Mahasiswa Bimbingan Lainnya">
+                                  {myAdvisees
                                     .filter(m => !formData.attendees.some(a => a.mahasiswa_id === m.id))
                                     .map(m => (
                                       <option key={m.id} value={m.id}>
@@ -1060,7 +1354,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                             <button
                               type="button"
                               onClick={() => removeTemuanRow(idx)}
-                              className="p-1 text-slate-400 hover:text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                              className="p-1 text-slate-400 hover:text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
                               title="Hapus baris temuan ini"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1098,11 +1392,11 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                     4. Diisi Saat Pra-KRS Oleh Dosen PA
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Evaluasi capaian IPS semester lalu, mata kuliah bernilai D, jumlah SKS pilihan, dan poin PK2.
+                    Evaluasi capaian IPS semester lalu, mata kuliah bernilai D, jumlah SKS pilihan, dan poin PK2 untuk peserta yang terdaftar.
                   </p>
                 </div>
                 {formData.jenis_pertemuan !== 'PRA_KRS' && (
-                  <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                  <span className="text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-1 rounded">
                     Opsional jika bukan periode Pra-KRS
                   </span>
                 )}
@@ -1113,7 +1407,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900">
                       <th className="py-2 px-2 w-8 text-center">No</th>
-                      <th className="py-2 px-2 w-1/4">Nama Mahasiswa</th>
+                      <th className="py-2 px-2 w-1/4">Nama Mahasiswa (Pool)</th>
                       <th className="py-2 px-2 w-20 text-center">IPS*</th>
                       <th className="py-2 px-2">Nama MK dgn Nilai D*</th>
                       <th className="py-2 px-2 w-28 text-center">SKS Pilihan Diprogram</th>
@@ -1132,10 +1426,18 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                         <tr key={idx} className="border-b border-slate-100 dark:border-slate-800">
                           <td className="py-2 px-2 text-center font-bold text-slate-400">{idx + 1}</td>
                           <td className="py-2 px-2">
-                            <span className="font-semibold text-slate-800 dark:text-slate-200 block">
-                              {att.nama || 'Mahasiswa ' + (idx + 1)}
-                            </span>
-                            <span className="text-[10px] text-slate-500">{att.nrp || '-'}</span>
+                            {att.mahasiswa_id ? (
+                              <div>
+                                <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                                  {att.nama}
+                                </span>
+                                <span className="text-[10px] font-mono text-slate-500">{att.nrp}</span>
+                              </div>
+                            ) : (
+                              <span className="text-amber-600 dark:text-amber-400 italic text-[11px]">
+                                (Belum dipilih pada bagian 2)
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 px-2">
                             <input
@@ -1204,7 +1506,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
               <button
                 type="button"
                 onClick={() => router.push('/')}
-                className="px-5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold"
+                className="px-5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer"
               >
                 Batal
               </button>
@@ -1212,7 +1514,7 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                 type="button"
                 disabled={isSaving}
                 onClick={handleSave}
-                className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm flex items-center gap-2 disabled:opacity-50"
+                className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm flex items-center gap-2 disabled:opacity-50 cursor-pointer"
               >
                 <Save className="w-4 h-4" />
                 {isSaving ? 'Menyimpan...' : 'Simpan Formulir Monev'}
@@ -1237,14 +1539,14 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
                 <button
                   type="button"
                   onClick={() => setActiveTab('form')}
-                  className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
                 >
                   ✏️ Kembali Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs"
+                  className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" /> Cetak / Simpan PDF
                 </button>
@@ -1262,6 +1564,228 @@ export function MonevFormEditor({ initialData, isEditing = false }: MonevFormEdi
         )}
 
       </div>
+
+      {/* ========================================================================= */}
+      {/* MULTI-SELECT POOL PICKER MODAL */}
+      {/* ========================================================================= */}
+      {showPoolModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  Pilih Peserta Pertemuan dari Pool Mahasiswa
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Centang mahasiswa yang mengikuti pertemuan bimbingan ini.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPoolModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Controls & Filters */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-3 bg-white dark:bg-slate-900">
+              
+              {/* Search Bar & Angkatan Filter */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative grow">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Cari berdasarkan nama mahasiswa, NRP, atau program studi..."
+                    value={modalSearchQuery}
+                    onChange={(e) => setModalSearchQuery(e.target.value)}
+                    className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 pl-9 pr-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <select
+                    value={modalAngkatanFilter}
+                    onChange={(e) => setModalAngkatanFilter(e.target.value)}
+                    className="text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
+                  >
+                    <option value="ALL">Semua Angkatan</option>
+                    {uniqueAngkatans.map(year => (
+                      <option key={year} value={String(year)}>Angkatan {year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Filter Tabs & Fast Batch Selection */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setModalTabFilter('ALL')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      modalTabFilter === 'ALL'
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    Semua ({mahasiswas.length})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalTabFilter('MY_ADVISEES')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      modalTabFilter === 'MY_ADVISEES'
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    ⭐ Bimbingan Anda ({myAdvisees.length})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalTabFilter('AVAILABLE')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      modalTabFilter === 'AVAILABLE'
+                        ? 'bg-amber-600 text-white shadow-2xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    📋 Pool Bebas ({poolAvailable.length})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalTabFilter('OTHER')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      modalTabFilter === 'OTHER'
+                        ? 'bg-slate-700 text-white shadow-2xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    👥 Bimbingan Lain ({otherAdvisees.length})
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSelectAllInModal}
+                    className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                  >
+                    Pilih/Batal Semua Tampil
+                  </button>
+                  {myAdvisees.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleSelectMyAdviseesInModal}
+                      className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                    >
+                      Pilih Semua Bimbingan
+                    </button>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Student List Table */}
+            <div className="overflow-y-auto max-h-[50vh] p-4 divide-y divide-slate-100 dark:divide-slate-800">
+              {modalFilteredStudents.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-500">
+                  Tidak ada mahasiswa yang sesuai dengan filter pencarian.
+                </div>
+              ) : (
+                modalFilteredStudents.map(m => {
+                  const isChecked = modalSelectedStudentIds.includes(m.id);
+                  const isMyAdvisee = m.dosen_wali_id === formData.dosen_id;
+                  const isUnassigned = !m.dosen_wali_id;
+
+                  return (
+                    <label
+                      key={m.id}
+                      className={`flex items-center justify-between p-3 rounded-xl transition-all cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 ${
+                        isChecked ? 'bg-blue-50/50 dark:bg-blue-950/30' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleStudentInModal(m.id)}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                              {m.nrp}
+                            </span>
+                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                              {m.nama}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500">
+                            {m.prodi_nama || 'Informatika'} • Angkatan {m.angkatan}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {isMyAdvisee ? (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                            Bimbingan Anda
+                          </span>
+                        ) : isUnassigned ? (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                            Pool Bebas
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                            Wali: {m.dosen_wali_nama || 'Lain'}
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950">
+              <div className="text-xs text-slate-600 dark:text-slate-400">
+                <span className="font-bold text-blue-600 dark:text-blue-400">{modalSelectedStudentIds.length}</span> mahasiswa terpilih
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPoolModal(false)}
+                  className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyPoolModalSelection}
+                  className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  Terapkan ke Formulir ({modalSelectedStudentIds.length})
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
