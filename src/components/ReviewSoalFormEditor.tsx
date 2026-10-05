@@ -440,7 +440,7 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
                 <option value="">-- Silakan Pilih Mata Kuliah --</option>
                 {filteredMataKuliah.map((mk) => (
                   <option key={mk.id} value={mk.id}>
-                    [{mk.kode}] {mk.nama} — Semester {mk.semester} ({mk.sks} SKS)
+                    [{mk.kode}] {mk.nama} — (Kurikulum {mk.kurikulum || '2024'}) Semester {mk.semester} ({mk.sks} SKS)
                   </option>
                 ))}
               </select>

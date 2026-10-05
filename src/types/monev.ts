@@ -36,6 +36,7 @@ export interface MataKuliah {
   nama: string;
   sks: number;
   semester: number;
+  kurikulum: string; // e.g. "2024", "2025"
   prodi_id: string;
   prodi_nama?: string;
   is_active?: boolean;

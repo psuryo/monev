@@ -16,11 +16,12 @@ async function migrate() {
         nama VARCHAR(255) NOT NULL,
         sks INTEGER NOT NULL DEFAULT 3,
         semester INTEGER NOT NULL DEFAULT 1,
+        kurikulum VARCHAR(20) NOT NULL DEFAULT '2024',
         prodi_id UUID NOT NULL REFERENCES prodi(id) ON DELETE CASCADE,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT uq_mata_kuliah_kode_prodi UNIQUE(kode, prodi_id)
+        CONSTRAINT uq_mata_kuliah_kode_prodi_kurikulum UNIQUE(kode, prodi_id, kurikulum)
       )
     `;
     console.log('mata_kuliah table created or already exists.');

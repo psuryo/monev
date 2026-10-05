@@ -8,8 +8,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const prodiId = searchParams.get('prodiId') || undefined;
     const search = searchParams.get('search') || undefined;
+    const kurikulum = searchParams.get('kurikulum') || undefined;
 
-    const data = await getMataKuliahList(prodiId, search);
+    const data = await getMataKuliahList(prodiId, search, kurikulum);
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { kode, nama, sks, semester, prodi_id } = body;
+    const { kode, nama, sks, semester, kurikulum, prodi_id } = body;
 
     if (!kode || !nama || !prodi_id) {
       return NextResponse.json({ 
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
       nama,
       sks: Number(sks) || 3,
       semester: Number(semester) || 1,
+      kurikulum: kurikulum?.toString().trim() || '2024',
       prodi_id
     });
 

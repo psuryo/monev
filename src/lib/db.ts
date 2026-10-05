@@ -40,11 +40,11 @@ let mockTahunAkademik: TahunAkademik[] = [
 ];
 
 let mockMataKuliah: MataKuliah[] = [
-  { id: 'mk-1', kode: 'INF101', nama: 'Algoritma & Pemrograman', sks: 3, semester: 1, prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
-  { id: 'mk-2', kode: 'INF201', nama: 'Struktur Data & Algoritma', sks: 3, semester: 2, prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
-  { id: 'mk-3', kode: 'INF301', nama: 'Basis Data', sks: 3, semester: 3, prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
-  { id: 'mk-4', kode: 'INF401', nama: 'Pemrograman Web', sks: 3, semester: 4, prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
-  { id: 'mk-5', kode: 'INF402', nama: 'Rekayasa Perangkat Lunak', sks: 3, semester: 4, prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
+  { id: 'mk-1', kode: 'INF101', nama: 'Algoritma & Pemrograman', sks: 3, semester: 1, kurikulum: '2024', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
+  { id: 'mk-2', kode: 'INF201', nama: 'Struktur Data & Algoritma', sks: 3, semester: 2, kurikulum: '2024', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
+  { id: 'mk-3', kode: 'INF301', nama: 'Basis Data', sks: 3, semester: 3, kurikulum: '2024', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
+  { id: 'mk-4', kode: 'INF401', nama: 'Pemrograman Web', sks: 3, semester: 4, kurikulum: '2024', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
+  { id: 'mk-5', kode: 'INF402', nama: 'Rekayasa Perangkat Lunak', sks: 3, semester: 4, kurikulum: '2024', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika', is_active: true },
 ];
 
 let mockMonevForms: MonevFormData[] = [];
@@ -1031,20 +1031,25 @@ export async function deleteMonevForm(id: string, dosenId?: string): Promise<boo
 // MATA KULIAH FUNCTIONS
 // ==========================================
 
-export async function getMataKuliahList(prodiId?: string, search?: string): Promise<MataKuliah[]> {
+export async function getMataKuliahList(prodiId?: string, search?: string, kurikulum?: string): Promise<MataKuliah[]> {
   const sql = getDbClient();
   const validProdiId = prodiId && prodiId !== 'ALL' && isValidUuid(prodiId) ? prodiId : undefined;
   const cleanSearch = search?.trim().toLowerCase();
+  const cleanKurikulum = kurikulum && kurikulum !== 'ALL' ? kurikulum.trim() : undefined;
 
   if (!sql) {
     let list = mockMataKuliah;
     if (validProdiId) {
       list = list.filter(m => m.prodi_id === validProdiId);
     }
+    if (cleanKurikulum) {
+      list = list.filter(m => m.kurikulum === cleanKurikulum);
+    }
     if (cleanSearch) {
       list = list.filter(m => 
         m.nama.toLowerCase().includes(cleanSearch) || 
-        m.kode.toLowerCase().includes(cleanSearch)
+        m.kode.toLowerCase().includes(cleanSearch) ||
+        (m.kurikulum && m.kurikulum.toLowerCase().includes(cleanSearch))
       );
     }
     return list;
@@ -1052,20 +1057,36 @@ export async function getMataKuliahList(prodiId?: string, search?: string): Prom
 
   try {
     let rows: any[];
-    if (validProdiId) {
+    if (validProdiId && cleanKurikulum) {
       rows = await sql`
-        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
+        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.kurikulum, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
+        FROM mata_kuliah mk
+        JOIN prodi p ON mk.prodi_id = p.id
+        WHERE mk.prodi_id = ${validProdiId} AND mk.kurikulum = ${cleanKurikulum}
+        ORDER BY mk.kurikulum DESC, mk.semester ASC, mk.kode ASC
+      `;
+    } else if (validProdiId) {
+      rows = await sql`
+        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.kurikulum, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
         FROM mata_kuliah mk
         JOIN prodi p ON mk.prodi_id = p.id
         WHERE mk.prodi_id = ${validProdiId}
-        ORDER BY mk.semester ASC, mk.kode ASC
+        ORDER BY mk.kurikulum DESC, mk.semester ASC, mk.kode ASC
+      `;
+    } else if (cleanKurikulum) {
+      rows = await sql`
+        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.kurikulum, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
+        FROM mata_kuliah mk
+        JOIN prodi p ON mk.prodi_id = p.id
+        WHERE mk.kurikulum = ${cleanKurikulum}
+        ORDER BY mk.kurikulum DESC, p.kode ASC, mk.semester ASC, mk.kode ASC
       `;
     } else {
       rows = await sql`
-        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
+        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.kurikulum, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
         FROM mata_kuliah mk
         JOIN prodi p ON mk.prodi_id = p.id
-        ORDER BY p.kode ASC, mk.semester ASC, mk.kode ASC
+        ORDER BY mk.kurikulum DESC, p.kode ASC, mk.semester ASC, mk.kode ASC
       `;
     }
 
@@ -1073,7 +1094,8 @@ export async function getMataKuliahList(prodiId?: string, search?: string): Prom
     if (cleanSearch) {
       result = result.filter(m => 
         m.nama.toLowerCase().includes(cleanSearch) || 
-        m.kode.toLowerCase().includes(cleanSearch)
+        m.kode.toLowerCase().includes(cleanSearch) ||
+        (m.kurikulum && m.kurikulum.toLowerCase().includes(cleanSearch))
       );
     }
     return result;
@@ -1091,7 +1113,7 @@ export async function getMataKuliahById(id: string): Promise<MataKuliah | null> 
 
   try {
     const rows = await sql`
-      SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
+      SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.kurikulum, mk.prodi_id, mk.is_active, mk.created_at, mk.updated_at, p.nama as prodi_nama
       FROM mata_kuliah mk
       JOIN prodi p ON mk.prodi_id = p.id
       WHERE mk.id = ${id}
@@ -1109,9 +1131,12 @@ export async function createMataKuliah(data: {
   nama: string;
   sks: number;
   semester: number;
+  kurikulum?: string;
   prodi_id: string;
 }): Promise<MataKuliah> {
   const sql = getDbClient();
+  const kurikulumVal = (data.kurikulum && data.kurikulum.trim()) || '2024';
+
   if (!sql) {
     const prodi = mockProdis.find(p => p.id === data.prodi_id);
     const newMk: MataKuliah = {
@@ -1120,6 +1145,7 @@ export async function createMataKuliah(data: {
       nama: data.nama.trim(),
       sks: Number(data.sks) || 3,
       semester: Number(data.semester) || 1,
+      kurikulum: kurikulumVal,
       prodi_id: data.prodi_id,
       prodi_nama: prodi?.nama || 'Informatika',
       is_active: true,
@@ -1132,9 +1158,9 @@ export async function createMataKuliah(data: {
 
   try {
     const rows = await sql`
-      INSERT INTO mata_kuliah (kode, nama, sks, semester, prodi_id)
-      VALUES (${data.kode.trim().toUpperCase()}, ${data.nama.trim()}, ${Number(data.sks) || 3}, ${Number(data.semester) || 1}, ${data.prodi_id})
-      RETURNING id, kode, nama, sks, semester, prodi_id, is_active, created_at, updated_at
+      INSERT INTO mata_kuliah (kode, nama, sks, semester, kurikulum, prodi_id)
+      VALUES (${data.kode.trim().toUpperCase()}, ${data.nama.trim()}, ${Number(data.sks) || 3}, ${Number(data.semester) || 1}, ${kurikulumVal}, ${data.prodi_id})
+      RETURNING id, kode, nama, sks, semester, kurikulum, prodi_id, is_active, created_at, updated_at
     `;
     const prodi = await sql`SELECT nama FROM prodi WHERE id = ${data.prodi_id}`;
     return {
@@ -1165,11 +1191,12 @@ export async function updateMataKuliah(id: string, data: Partial<MataKuliah>): P
         nama = COALESCE(${data.nama?.trim()}, nama),
         sks = COALESCE(${data.sks !== undefined ? Number(data.sks) : null}, sks),
         semester = COALESCE(${data.semester !== undefined ? Number(data.semester) : null}, semester),
+        kurikulum = COALESCE(${data.kurikulum?.trim()}, kurikulum),
         prodi_id = COALESCE(${data.prodi_id}, prodi_id),
         is_active = COALESCE(${data.is_active !== undefined ? data.is_active : null}, is_active),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
-      RETURNING id, kode, nama, sks, semester, prodi_id, is_active, created_at, updated_at
+      RETURNING id, kode, nama, sks, semester, kurikulum, prodi_id, is_active, created_at, updated_at
     `;
     if (rows.length === 0) return null;
     const prodi = await sql`SELECT nama FROM prodi WHERE id = ${rows[0].prodi_id}`;
