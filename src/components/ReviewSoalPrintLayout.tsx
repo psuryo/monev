@@ -204,67 +204,67 @@ export function ReviewSoalPrintLayout({ data }: ReviewSoalPrintLayoutProps) {
       {/* 5. TANDA TANGAN & PENGESAHAN */}
       {/* ========================================================================= */}
       <div className="mt-8 pt-2">
-        <div className="grid grid-cols-2 gap-8 text-[11pt]">
+        <div className="grid grid-cols-2 gap-4 text-[11pt]">
           {/* Sisi Kiri: Mengetahui Ketua Program Studi */}
-          <div className="text-left flex flex-col justify-between min-h-[140px]">
+          <div className="text-left flex flex-col justify-between min-h-[140px] pr-2">
             <div>
               <div>Mengetahui,</div>
               <div className="font-semibold">Ketua Program Studi</div>
             </div>
 
-            <div className="my-2 h-[65px] flex items-center">
-              {data.kaprodi_signature_url ? (
+            <div className="my-1.5 min-h-[75px] flex items-center">
+              {data.kaprodi_signature_url || data.kaprodi_signature_url === undefined ? (
                 <img 
-                  src={data.kaprodi_signature_url} 
+                  src={data.kaprodi_signature_url || '/api/signature/kaprodi'} 
                   alt="Tanda Tangan Kaprodi" 
-                  className="max-h-[60px] max-w-[160px] object-contain"
+                  className="max-h-[75px] max-w-[220px] object-contain"
                 />
               ) : (
-                <div className="h-[55px]"></div>
+                <div className="h-[75px]"></div>
               )}
             </div>
 
             <div>
-              <div className="font-bold border-b border-black inline-block min-w-[200px] pb-0.5">
+              <div className="font-bold border-b border-black inline-block pb-0.5 whitespace-nowrap text-[10.5pt]">
                 {data.kaprodi_nama && data.kaprodi_nama.trim() !== '-' && data.kaprodi_nama.trim() !== ''
                   ? data.kaprodi_nama
-                  : '...................................................'}
+                  : 'Ir. Drs. Peter R. Angka, M.Kom., IPM., ASEAN Eng.'}
               </div>
               <div className="mt-1 text-[10pt]">
                 NIK. {data.kaprodi_nik && data.kaprodi_nik.trim() !== '-' && data.kaprodi_nik.trim() !== ''
                   ? data.kaprodi_nik
-                  : '...................................'}
+                  : '581880136'}
               </div>
             </div>
           </div>
 
           {/* Sisi Kanan: Peninjau */}
-          <div className="text-left pl-8 flex flex-col justify-between min-h-[140px]">
+          <div className="text-left pl-4 flex flex-col justify-between min-h-[140px]">
             <div>
               <div>Surabaya, {formattedDate || '...................................'}</div>
               <div className="font-semibold">Peninjau</div>
             </div>
 
-            <div className="my-2 h-[65px] flex items-center">
+            <div className="my-1.5 min-h-[75px] flex items-center">
               {data.peninjau_signature_url ? (
                 <img 
                   src={data.peninjau_signature_url} 
                   alt="Tanda Tangan Peninjau" 
-                  className="max-h-[60px] max-w-[160px] object-contain"
+                  className="max-h-[75px] max-w-[200px] object-contain"
                 />
               ) : (
-                <div className="h-[55px]"></div>
+                <div className="h-[75px]"></div>
               )}
             </div>
 
             <div>
-              <div className="font-bold border-b border-black inline-block min-w-[200px] pb-0.5">
+              <div className="font-bold border-b border-black inline-block min-w-[180px] pb-0.5 whitespace-nowrap text-[10.5pt]">
                 {data.peninjau_nama && data.peninjau_nama.trim() !== '-' && data.peninjau_nama.trim() !== ''
                   ? data.peninjau_nama
                   : '...................................................'}
               </div>
               <div className="mt-1 text-[10pt]">
-                NIK {data.peninjau_nik && data.peninjau_nik.trim() !== '-' && data.peninjau_nik.trim() !== ''
+                NIK. {data.peninjau_nik && data.peninjau_nik.trim() !== '-' && data.peninjau_nik.trim() !== ''
                   ? data.peninjau_nik
                   : '...................................'}
               </div>

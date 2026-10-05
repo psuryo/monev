@@ -27,6 +27,7 @@ let mockProdis: Prodi[] = [
 
 let mockDosens: Dosen[] = [
   { id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', nik: '581000020', nama: 'Philipus Suryo Subandoro, S.Kom., M.Kom.', email: 'philipus@ukwms.ac.id', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika' },
+  { id: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', nik: '581880136', nama: 'Ir. Drs. Peter R. Angka, M.Kom., IPM., ASEAN Eng.', email: 'peter.angka@ukwms.ac.id', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika' },
   { id: 'd2a1b3c4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', nik: '581000021', nama: 'Dr. Ir. Yohanes Surya, M.T.', email: 'yohanes@ukwms.ac.id', prodi_id: '7fa14fe3-b64c-4f04-9403-17a674d5e6ec', prodi_nama: 'Informatika' },
   { id: 'e3b2c1d0-f4e5-4b6a-9d8c-1f2e3d4c5b6a', nik: '581000022', nama: 'Ir. Maria Fransiska, M.Eng.', email: 'maria@ukwms.ac.id', prodi_id: '05b4754f-1d8c-49c9-8b0b-4c7c8a2058f7', prodi_nama: 'Teknik Elektro' },
 ];
@@ -1404,9 +1405,9 @@ export async function saveReviewSoalForm(data: ReviewSoalFormData): Promise<Revi
           ${data.peninjau_signature_url || null},
           ${data.peninjau_signed_at || null},
           ${validKaprodiDosenId},
-          ${data.kaprodi_nama || '-'},
-          ${data.kaprodi_nik || '-'},
-          ${data.kaprodi_signature_url || null},
+          ${data.kaprodi_nama || 'Ir. Drs. Peter R. Angka, M.Kom., IPM., ASEAN Eng.'},
+          ${data.kaprodi_nik || '581880136'},
+          ${data.kaprodi_signature_url || '/api/signature/kaprodi'},
           ${data.kaprodi_signed_at || null},
           ${safeStatus},
           ${data.catatan_umum || ''}
@@ -1437,9 +1438,9 @@ export async function saveReviewSoalForm(data: ReviewSoalFormData): Promise<Revi
           peninjau_signature_url = ${data.peninjau_signature_url || null},
           peninjau_signed_at = ${data.peninjau_signed_at || null},
           kaprodi_dosen_id = ${validKaprodiDosenId},
-          kaprodi_nama = ${data.kaprodi_nama || '-'},
-          kaprodi_nik = ${data.kaprodi_nik || '-'},
-          kaprodi_signature_url = ${data.kaprodi_signature_url || null},
+          kaprodi_nama = ${data.kaprodi_nama || 'Ir. Drs. Peter R. Angka, M.Kom., IPM., ASEAN Eng.'},
+          kaprodi_nik = ${data.kaprodi_nik || '581880136'},
+          kaprodi_signature_url = ${data.kaprodi_signature_url || '/api/signature/kaprodi'},
           kaprodi_signed_at = ${data.kaprodi_signed_at || null},
           status = ${safeStatus},
           catatan_umum = ${data.catatan_umum || ''},
