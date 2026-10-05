@@ -3,19 +3,24 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { Printer, Edit3, ArrowLeft, CheckCircle2, BookOpen } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { ReviewSoalPrintLayout } from '@/components/ReviewSoalPrintLayout';
 import { ReviewSoalFormData } from '@/types/monev';
+import { canModifyReviewSoal } from '@/lib/review-soal-permissions';
 
 export default function ViewReviewSoalPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
+  const { data: session } = useSession();
 
   const [form, setForm] = useState<ReviewSoalFormData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const canModify = canModifyReviewSoal(form, session?.user);
 
   useEffect(() => {
     async function loadForm() {
@@ -98,12 +103,14 @@ export default function ViewReviewSoalPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href={`/review-soal/${form.id}/edit`}
-            className="px-3.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5"
-          >
-            <Edit3 className="w-3.5 h-3.5" /> Edit Data
-          </Link>
+          {canModify && (
+            <Link
+              href={`/review-soal/${form.id}/edit`}
+              className="px-3.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-colors"
+            >
+              <Edit3 className="w-3.5 h-3.5" /> Edit Data
+            </Link>
+          )}
 
           <button
             onClick={() => window.print()}

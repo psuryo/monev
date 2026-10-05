@@ -155,6 +155,10 @@ export interface ReviewSoalFormData {
   status: FormStatusType | string;
   catatan_umum?: string;
   
+  created_by_dosen_id?: string | null;
+  created_by_nik?: string | null;
+  created_by_nama?: string | null;
+
   items: ReviewSoalItem[];
   
   created_at?: string;

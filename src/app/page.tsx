@@ -28,6 +28,7 @@ import {
 import { Navbar } from '@/components/Navbar';
 import { MonevFormData, ReviewSoalFormData, Prodi } from '@/types/monev';
 import { StudentConsultationTracker } from '@/components/StudentConsultationTracker';
+import { canModifyReviewSoal } from '@/lib/review-soal-permissions';
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -590,7 +591,9 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {filteredReviewForms.map((form) => (
+                    {filteredReviewForms.map((form) => {
+                      const canModify = canModifyReviewSoal(form, session?.user);
+                      return (
                       <tr 
                         key={form.id}
                         className="hover:bg-indigo-50/40 dark:hover:bg-slate-900/60 transition-colors group cursor-pointer"
@@ -659,30 +662,42 @@ export default function DashboardPage() {
                           <div className="flex items-center justify-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                             <Link
                               href={`/review-soal/${form.id}`}
-                              className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300"
+                              className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 transition-colors"
                               title="Lihat & Cetak Formulir A4"
                             >
                               <Printer className="w-4 h-4" />
                             </Link>
-                            <Link
-                              href={`/review-soal/${form.id}/edit`}
-                              className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400"
-                              title="Edit Data Form"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={(e) => handleDeleteReviewSoal(form.id!, e)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 cursor-pointer"
-                              title="Hapus Form"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {canModify ? (
+                              <>
+                                <Link
+                                  href={`/review-soal/${form.id}/edit`}
+                                  className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 transition-colors"
+                                  title="Edit Data Form"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteReviewSoal(form.id!, e)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 cursor-pointer transition-colors"
+                                  title="Hapus Form"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <span 
+                                className="text-[10px] text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 rounded font-medium"
+                                title="Hanya dapat dicetak (dibuat oleh pengguna lain)"
+                              >
+                                Hanya Cetak
+                              </span>
+                            )}
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

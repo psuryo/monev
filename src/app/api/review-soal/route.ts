@@ -24,14 +24,31 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     const body: ReviewSoalFormData = await request.json();
 
-    // Autofill / ensure author
-    if (session?.user && !body.peninjau_dosen_id) {
-      body.peninjau_dosen_id = (session.user as any).dosen_id;
-      if (!body.peninjau_nama && session.user.name) {
-        body.peninjau_nama = session.user.name;
+    // Attach creator information from session
+    if (session?.user) {
+      const userDosenId = (session.user as any).dosen_id || session.user.id;
+      const userNik = (session.user as any).nik;
+      const userName = session.user.name || (session.user as any).nama;
+
+      if (!body.created_by_dosen_id && userDosenId) {
+        body.created_by_dosen_id = userDosenId;
       }
-      if (!body.peninjau_nik && (session.user as any).nik) {
-        body.peninjau_nik = (session.user as any).nik;
+      if (!body.created_by_nik && userNik) {
+        body.created_by_nik = userNik;
+      }
+      if (!body.created_by_nama && userName) {
+        body.created_by_nama = userName;
+      }
+
+      // Default peninjau to creator if not specified
+      if (!body.peninjau_dosen_id && userDosenId) {
+        body.peninjau_dosen_id = userDosenId;
+      }
+      if (!body.peninjau_nama && userName) {
+        body.peninjau_nama = userName;
+      }
+      if (!body.peninjau_nik && userNik) {
+        body.peninjau_nik = userNik;
       }
     }
 

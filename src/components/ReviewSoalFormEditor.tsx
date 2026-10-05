@@ -116,6 +116,19 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
             peninjau_nik: prev.peninjau_nik || ((session?.user as any)?.nik || ''),
             peninjau_dosen_id: prev.peninjau_dosen_id || ((session?.user as any)?.dosen_id || null),
           }));
+        } else if (initialData && !initialData.mata_kuliah_id && mkRes.data) {
+          // If editing an existing form without mata_kuliah_id, match from master data
+          const matchedMk = mkRes.data.find(
+            (m: MataKuliah) => 
+              m.kode.toLowerCase() === initialData.kode_mk?.toLowerCase() ||
+              m.nama.toLowerCase() === initialData.nama_mk?.toLowerCase()
+          );
+          if (matchedMk) {
+            setFormData(prev => ({
+              ...prev,
+              mata_kuliah_id: matchedMk.id,
+            }));
+          }
         }
       } catch (err: any) {
         console.error('Failed to load references:', err);
@@ -134,10 +147,14 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
 
   // Handle selecting a course from dropdown
   const handleSelectMataKuliah = (mkId: string) => {
-    if (mkId === 'CUSTOM') {
+    if (!mkId) {
       setFormData(prev => ({
         ...prev,
         mata_kuliah_id: null,
+        nama_mk: '',
+        kode_mk: '',
+        sks_mk: 3,
+        semester_mk: '1',
       }));
       return;
     }
@@ -203,8 +220,8 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
       setErrorMessage('Silakan pilih Tahun Akademik.');
       return;
     }
-    if (!formData.nama_mk.trim() || !formData.kode_mk.trim()) {
-      setErrorMessage('Nama Mata Kuliah dan Kode MK wajib diisi.');
+    if (!formData.mata_kuliah_id || !formData.nama_mk.trim() || !formData.kode_mk.trim()) {
+      setErrorMessage('Silakan pilih Mata Kuliah dari daftar dropdown.');
       return;
     }
     if (!formData.dosen_pengampu.trim()) {
@@ -220,6 +237,9 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
       setSubmitting(true);
       const payload: ReviewSoalFormData = {
         ...formData,
+        created_by_dosen_id: formData.created_by_dosen_id || (session?.user as any)?.dosen_id || session?.user?.id || null,
+        created_by_nik: formData.created_by_nik || (session?.user as any)?.nik || null,
+        created_by_nama: formData.created_by_nama || session?.user?.name || (session?.user as any)?.nama || null,
         status: targetStatus || formData.status,
       };
 
@@ -331,7 +351,22 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
               </label>
               <select
                 value={formData.prodi_id}
-                onChange={(e) => setFormData({ ...formData, prodi_id: e.target.value })}
+                onChange={(e) => {
+                  const newProdiId = e.target.value;
+                  setFormData(prev => {
+                    const currentMk = mataKuliahList.find(m => m.id === prev.mata_kuliah_id);
+                    const isStillValid = currentMk && currentMk.prodi_id === newProdiId;
+                    return {
+                      ...prev,
+                      prodi_id: newProdiId,
+                      mata_kuliah_id: isStillValid ? prev.mata_kuliah_id : null,
+                      nama_mk: isStillValid ? prev.nama_mk : '',
+                      kode_mk: isStillValid ? prev.kode_mk : '',
+                      semester_mk: isStillValid ? prev.semester_mk : '1',
+                      sks_mk: isStillValid ? prev.sks_mk : 3,
+                    };
+                  });
+                }}
                 className="w-full text-xs rounded-xl border border-slate-300 dark:border-slate-700 p-2.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">-- Pilih Program Studi --</option>
@@ -392,62 +427,71 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
           </div>
 
           <div className="space-y-4">
-            {/* Quick Picker from MataKuliah database */}
-            <div className="p-3.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50">
-              <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-200 mb-1.5">
-                Pilih dari Master Mata Kuliah (Otomatis Isi Kode & SKS):
+            {/* Dropdown Selector Mata Kuliah */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Pilih Mata Kuliah * (Wajib pilih dari daftar kurikulum prodi)
               </label>
               <select
-                value={formData.mata_kuliah_id || 'CUSTOM'}
+                value={formData.mata_kuliah_id || ''}
                 onChange={(e) => handleSelectMataKuliah(e.target.value)}
-                className="w-full text-xs rounded-lg border border-indigo-200 dark:border-indigo-800 p-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                className="w-full text-xs rounded-xl border border-slate-300 dark:border-slate-700 p-2.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 font-medium"
               >
-                <option value="CUSTOM">-- Pilih dari Master Mata Kuliah atau Ketik Manual --</option>
+                <option value="">-- Silakan Pilih Mata Kuliah --</option>
                 {filteredMataKuliah.map((mk) => (
                   <option key={mk.id} value={mk.id}>
-                    [{mk.kode}] {mk.nama} (Semester {mk.semester} • {mk.sks} SKS)
+                    [{mk.kode}] {mk.nama} — Semester {mk.semester} ({mk.sks} SKS)
                   </option>
                 ))}
               </select>
+              {filteredMataKuliah.length === 0 && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                  Belum ada daftar mata kuliah untuk Program Studi ini atau silakan pilih Program Studi terlebih dahulu.
+                </p>
+              )}
             </div>
 
+            {/* Read-Only Details: Nama, Kode, SKS, Semester */}
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
               <div className="sm:col-span-6">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Nama Mata Kuliah *
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  Nama Mata Kuliah (Otomatis dari Dropdown)
                 </label>
                 <input
                   type="text"
-                  placeholder="Contoh: Pemrograman Web"
+                  readOnly
+                  disabled
+                  placeholder="Pilih mata kuliah dari dropdown di atas"
                   value={formData.nama_mk}
-                  onChange={(e) => setFormData({ ...formData, nama_mk: e.target.value })}
-                  className="w-full text-xs rounded-xl border border-slate-300 dark:border-slate-700 p-2.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 bg-slate-100 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 font-medium cursor-not-allowed select-none"
                 />
               </div>
 
               <div className="sm:col-span-3">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Kode MK *
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  Kode MK (Otomatis)
                 </label>
                 <input
                   type="text"
-                  placeholder="Contoh: INF401"
+                  readOnly
+                  disabled
+                  placeholder="Kode MK"
                   value={formData.kode_mk}
-                  onChange={(e) => setFormData({ ...formData, kode_mk: e.target.value.toUpperCase() })}
-                  className="w-full text-xs rounded-xl border border-slate-300 dark:border-slate-700 p-2.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono uppercase"
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 bg-slate-100 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 font-mono font-semibold cursor-not-allowed select-none"
                 />
               </div>
 
               <div className="sm:col-span-3">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Semester MK
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  Semester & SKS (Otomatis)
                 </label>
                 <input
                   type="text"
-                  placeholder="Contoh: 4"
-                  value={formData.semester_mk}
-                  onChange={(e) => setFormData({ ...formData, semester_mk: e.target.value })}
-                  className="w-full text-xs rounded-xl border border-slate-300 dark:border-slate-700 p-2.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
+                  readOnly
+                  disabled
+                  placeholder="Semester & SKS"
+                  value={formData.nama_mk ? `Semester ${formData.semester_mk || '-'} • ${formData.sks_mk || 3} SKS` : ''}
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 bg-slate-100 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 font-medium cursor-not-allowed select-none"
                 />
               </div>
             </div>

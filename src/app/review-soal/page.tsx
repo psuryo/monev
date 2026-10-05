@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { ReviewSoalFormData, Prodi } from '@/types/monev';
+import { canModifyReviewSoal } from '@/lib/review-soal-permissions';
 
 export default function ReviewSoalListPage() {
   const { data: session } = useSession();
@@ -261,7 +262,9 @@ export default function ReviewSoalListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredForms.map((form) => (
+                  {filteredForms.map((form) => {
+                    const canModify = canModifyReviewSoal(form, session?.user);
+                    return (
                     <tr 
                       key={form.id}
                       className="hover:bg-blue-50/40 dark:hover:bg-slate-900/60 transition-colors group cursor-pointer"
@@ -330,30 +333,42 @@ export default function ReviewSoalListPage() {
                         <div className="flex items-center justify-center gap-1.5">
                           <Link
                             href={`/review-soal/${form.id}`}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors"
                             title="Lihat / Cetak Form"
                           >
                             <Printer className="w-4 h-4" />
                           </Link>
-                          <Link
-                            href={`/review-soal/${form.id}/edit`}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800"
-                            title="Edit Data"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDelete(form.id!, e)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 cursor-pointer"
-                            title="Hapus Form"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canModify ? (
+                            <>
+                              <Link
+                                href={`/review-soal/${form.id}/edit`}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 transition-colors"
+                                title="Edit Data"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={(e) => handleDelete(form.id!, e)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                                title="Hapus Form"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <span 
+                              className="text-[10px] text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 rounded font-medium"
+                              title="Hanya dapat dicetak (dibuat oleh pengguna lain)"
+                            >
+                              Hanya Cetak
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

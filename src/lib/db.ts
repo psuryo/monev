@@ -1237,6 +1237,7 @@ export async function getAllReviewSoalForms(filters?: {
           rf.dosen_pengampu, rf.waktu_peninjauan, rf.tanggal_peninjauan, rf.kota_peninjauan,
           rf.peninjau_dosen_id, rf.peninjau_nama, rf.peninjau_nik, rf.peninjau_signature_url, rf.peninjau_signed_at,
           rf.kaprodi_dosen_id, rf.kaprodi_nama, rf.kaprodi_nik, rf.kaprodi_signature_url, rf.kaprodi_signed_at,
+          rf.created_by_dosen_id, rf.created_by_nik, rf.created_by_nama,
           rf.status, rf.catatan_umum, rf.created_at, rf.updated_at
         FROM review_soal_forms rf
         JOIN prodi p ON rf.prodi_id = p.id
@@ -1253,6 +1254,7 @@ export async function getAllReviewSoalForms(filters?: {
           rf.dosen_pengampu, rf.waktu_peninjauan, rf.tanggal_peninjauan, rf.kota_peninjauan,
           rf.peninjau_dosen_id, rf.peninjau_nama, rf.peninjau_nik, rf.peninjau_signature_url, rf.peninjau_signed_at,
           rf.kaprodi_dosen_id, rf.kaprodi_nama, rf.kaprodi_nik, rf.kaprodi_signature_url, rf.kaprodi_signed_at,
+          rf.created_by_dosen_id, rf.created_by_nik, rf.created_by_nama,
           rf.status, rf.catatan_umum, rf.created_at, rf.updated_at
         FROM review_soal_forms rf
         JOIN prodi p ON rf.prodi_id = p.id
@@ -1310,6 +1312,7 @@ export async function getReviewSoalFormById(id: string): Promise<ReviewSoalFormD
         rf.dosen_pengampu, rf.waktu_peninjauan, rf.tanggal_peninjauan, rf.kota_peninjauan,
         rf.peninjau_dosen_id, rf.peninjau_nama, rf.peninjau_nik, rf.peninjau_signature_url, rf.peninjau_signed_at,
         rf.kaprodi_dosen_id, rf.kaprodi_nama, rf.kaprodi_nik, rf.kaprodi_signature_url, rf.kaprodi_signed_at,
+        rf.created_by_dosen_id, rf.created_by_nik, rf.created_by_nama,
         rf.status, rf.catatan_umum, rf.created_at, rf.updated_at
       FROM review_soal_forms rf
       JOIN prodi p ON rf.prodi_id = p.id
@@ -1373,6 +1376,9 @@ export async function saveReviewSoalForm(data: ReviewSoalFormData): Promise<Revi
     const validMkId = data.mata_kuliah_id && isValidUuid(data.mata_kuliah_id) ? data.mata_kuliah_id : null;
     const validPeninjauDosenId = data.peninjau_dosen_id && isValidUuid(data.peninjau_dosen_id) ? data.peninjau_dosen_id : null;
     const validKaprodiDosenId = data.kaprodi_dosen_id && isValidUuid(data.kaprodi_dosen_id) ? data.kaprodi_dosen_id : null;
+    const validCreatedByDosenId = data.created_by_dosen_id && isValidUuid(data.created_by_dosen_id) ? data.created_by_dosen_id : validPeninjauDosenId;
+    const validCreatedByNik = data.created_by_nik || data.peninjau_nik || null;
+    const validCreatedByNama = data.created_by_nama || data.peninjau_nama || null;
 
     let currentFormId: string;
 
@@ -1384,6 +1390,7 @@ export async function saveReviewSoalForm(data: ReviewSoalFormData): Promise<Revi
           dosen_pengampu, waktu_peninjauan, tanggal_peninjauan, kota_peninjauan,
           peninjau_dosen_id, peninjau_nama, peninjau_nik, peninjau_signature_url, peninjau_signed_at,
           kaprodi_dosen_id, kaprodi_nama, kaprodi_nik, kaprodi_signature_url, kaprodi_signed_at,
+          created_by_dosen_id, created_by_nik, created_by_nama,
           status, catatan_umum
         ) VALUES (
           ${data.no_dokumen || '047/FORM/PDK/FT/2023'},
@@ -1409,6 +1416,9 @@ export async function saveReviewSoalForm(data: ReviewSoalFormData): Promise<Revi
           ${data.kaprodi_nik || '581880136'},
           ${data.kaprodi_signature_url || '/api/signature/kaprodi'},
           ${data.kaprodi_signed_at || null},
+          ${validCreatedByDosenId},
+          ${validCreatedByNik},
+          ${validCreatedByNama},
           ${safeStatus},
           ${data.catatan_umum || ''}
         )
