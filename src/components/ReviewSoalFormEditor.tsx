@@ -18,7 +18,9 @@ import {
   Sparkles, 
   Check, 
   X,
-  FileCheck2
+  FileCheck2,
+  Lock,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   Prodi, 
@@ -85,6 +87,24 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Sync peninjau to active logged-in user
+  useEffect(() => {
+    if (session?.user && !initialData) {
+      const userDosenId = (session.user as any).dosen_id || session.user.id || null;
+      const userNik = (session.user as any).nik || '';
+      const userName = session.user.name || (session.user as any)?.nama || '';
+      setFormData(prev => ({
+        ...prev,
+        peninjau_nama: userName,
+        peninjau_nik: userNik,
+        peninjau_dosen_id: userDosenId,
+        created_by_nama: userName,
+        created_by_nik: userNik,
+        created_by_dosen_id: userDosenId,
+      }));
+    }
+  }, [session, initialData]);
+
   // Load Reference Datasets
   useEffect(() => {
     async function loadReferences() {
@@ -112,9 +132,9 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
             prodi_id: prev.prodi_id || defaultProdi?.id || '',
             tahun_akademik_id: prev.tahun_akademik_id || activeTa?.id || '',
             semester_tipe: activeTa?.semester || 'GASAL',
-            peninjau_nama: prev.peninjau_nama || (session?.user?.name || (session?.user as any)?.nama || ''),
-            peninjau_nik: prev.peninjau_nik || ((session?.user as any)?.nik || ''),
-            peninjau_dosen_id: prev.peninjau_dosen_id || ((session?.user as any)?.dosen_id || null),
+            peninjau_nama: (session?.user?.name || (session?.user as any)?.nama || prev.peninjau_nama || ''),
+            peninjau_nik: ((session?.user as any)?.nik || prev.peninjau_nik || ''),
+            peninjau_dosen_id: ((session?.user as any)?.dosen_id || prev.peninjau_dosen_id || null),
           }));
         } else if (initialData && !initialData.mata_kuliah_id && mkRes.data) {
           // If editing an existing form without mata_kuliah_id, match from master data
@@ -184,18 +204,6 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
     });
   };
 
-  // Fill current user as Peninjau
-  const handleUseCurrentUserAsPeninjau = () => {
-    if (session?.user) {
-      setFormData(prev => ({
-        ...prev,
-        peninjau_nama: session.user?.name || (session.user as any)?.nama || '',
-        peninjau_nik: (session.user as any)?.nik || '',
-        peninjau_dosen_id: (session.user as any)?.dosen_id || null,
-      }));
-    }
-  };
-
   // Quick select Dosen Pengampu
   const handleAddDosenPengampu = (dosenName: string) => {
     setFormData(prev => {
@@ -228,18 +236,22 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
       setErrorMessage('Dosen Pengampu wajib diisi.');
       return;
     }
-    if (!formData.peninjau_nama.trim()) {
-      setErrorMessage('Nama Dosen Peninjau wajib diisi.');
-      return;
-    }
+
+    const currentUserName = session?.user?.name || (session?.user as any)?.nama || formData.peninjau_nama;
+    const currentUserNik = (session?.user as any)?.nik || formData.peninjau_nik;
+    const currentUserDosenId = (session?.user as any)?.dosen_id || session?.user?.id || formData.peninjau_dosen_id;
 
     try {
       setSubmitting(true);
       const payload: ReviewSoalFormData = {
         ...formData,
-        created_by_dosen_id: formData.created_by_dosen_id || (session?.user as any)?.dosen_id || session?.user?.id || null,
-        created_by_nik: formData.created_by_nik || (session?.user as any)?.nik || null,
-        created_by_nama: formData.created_by_nama || session?.user?.name || (session?.user as any)?.nama || null,
+        // Always enforce active user as peninjau for new forms, or retain existing for edits
+        peninjau_nama: !isEditMode ? currentUserName : (formData.peninjau_nama || currentUserName),
+        peninjau_nik: !isEditMode ? currentUserNik : (formData.peninjau_nik || currentUserNik),
+        peninjau_dosen_id: !isEditMode ? currentUserDosenId : (formData.peninjau_dosen_id || currentUserDosenId),
+        created_by_dosen_id: formData.created_by_dosen_id || currentUserDosenId,
+        created_by_nik: formData.created_by_nik || currentUserNik,
+        created_by_nama: formData.created_by_nama || currentUserName,
         status: targetStatus || formData.status,
       };
 
@@ -664,7 +676,7 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
                 4. Pengesahan & Tanda Tangan Digital Dosen Peninjau
               </h2>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Formulir ditandatangani oleh Dosen Peninjau. Ruang tanda tangan Ketua Program Studi tersedia pada dokumen cetak fisik.
+                Peninjauan soal secara otomatis terikat dengan akun dosen yang aktif login dan tidak dapat dialihkan ke pengguna lain.
               </p>
             </div>
           </div>
@@ -673,44 +685,49 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
             {/* Dosen Peninjau */}
             <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  Dosen Peninjau
-                </h3>
-                <button
-                  type="button"
-                  onClick={handleUseCurrentUserAsPeninjau}
-                  className="text-[11px] font-semibold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <Sparkles className="w-3 h-3" /> Saya Sebagai Peninjau
-                </button>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                    Dosen Peninjau (User Aktif)
+                  </h3>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <Lock className="w-3 h-3" /> Akun Login Aktif
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    Nama Lengkap Peninjau *
+                    Nama Lengkap Peninjau (Terkunci)
                   </label>
                   <input
                     type="text"
-                    placeholder="Nama beserta gelar"
-                    value={formData.peninjau_nama}
-                    onChange={(e) => setFormData({ ...formData, peninjau_nama: e.target.value })}
-                    className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    readOnly
+                    disabled
+                    value={formData.peninjau_nama || session?.user?.name || (session?.user as any)?.nama || 'Memuat...'}
+                    className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-medium cursor-not-allowed"
                   />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    NIK Peninjau *
+                    NIK Peninjau (Terkunci)
                   </label>
                   <input
                     type="text"
-                    placeholder="Nomor Induk Karyawan"
-                    value={formData.peninjau_nik}
-                    onChange={(e) => setFormData({ ...formData, peninjau_nik: e.target.value })}
-                    className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    readOnly
+                    disabled
+                    value={formData.peninjau_nik || (session?.user as any)?.nik || '-'}
+                    className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 p-2.5 bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-medium cursor-not-allowed"
                   />
                 </div>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-[11px] text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span>
+                  Peninjauan soal hanya dapat dilakukan oleh dosen yang sedang login. Identitas peninjau terkunci otomatis sesuai sesi akun Anda.
+                </span>
               </div>
 
               <div className="pt-2">
@@ -719,7 +736,7 @@ export function ReviewSoalFormEditor({ initialData, isEditMode = false }: Review
                 </label>
                 <SignatureCanvas
                   initialSignature={formData.peninjau_signature_url}
-                  signerName={formData.peninjau_nama || 'Peninjau'}
+                  signerName={formData.peninjau_nama || session?.user?.name || (session?.user as any)?.nama || 'Peninjau'}
                   onSave={(signatureData) => setFormData(prev => ({
                     ...prev,
                     peninjau_signature_url: signatureData,

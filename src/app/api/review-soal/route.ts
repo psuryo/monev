@@ -24,32 +24,20 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     const body: ReviewSoalFormData = await request.json();
 
-    // Attach creator information from session
+    // Attach creator and peninjau information strictly from active session user
     if (session?.user) {
       const userDosenId = (session.user as any).dosen_id || session.user.id;
       const userNik = (session.user as any).nik;
       const userName = session.user.name || (session.user as any).nama;
 
-      if (!body.created_by_dosen_id && userDosenId) {
-        body.created_by_dosen_id = userDosenId;
-      }
-      if (!body.created_by_nik && userNik) {
-        body.created_by_nik = userNik;
-      }
-      if (!body.created_by_nama && userName) {
-        body.created_by_nama = userName;
-      }
+      body.created_by_dosen_id = userDosenId || body.created_by_dosen_id;
+      body.created_by_nik = userNik || body.created_by_nik;
+      body.created_by_nama = userName || body.created_by_nama;
 
-      // Default peninjau to creator if not specified
-      if (!body.peninjau_dosen_id && userDosenId) {
-        body.peninjau_dosen_id = userDosenId;
-      }
-      if (!body.peninjau_nama && userName) {
-        body.peninjau_nama = userName;
-      }
-      if (!body.peninjau_nik && userNik) {
-        body.peninjau_nik = userNik;
-      }
+      // STRICT: The reviewer (peninjau) is strictly the active authenticated user
+      body.peninjau_dosen_id = userDosenId || null;
+      body.peninjau_nama = userName || body.peninjau_nama;
+      body.peninjau_nik = userNik || body.peninjau_nik;
     }
 
     if (!body.prodi_id || !body.tahun_akademik_id || !body.nama_mk || !body.kode_mk || !body.dosen_pengampu) {

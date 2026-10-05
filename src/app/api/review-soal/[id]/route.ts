@@ -45,10 +45,14 @@ export async function PUT(
     const body: ReviewSoalFormData = await request.json();
     body.id = id;
     
-    // Preserve existing creator metadata
+    // Preserve existing creator and peninjau metadata (cannot be transferred to another user)
     body.created_by_dosen_id = existing.created_by_dosen_id || body.created_by_dosen_id;
     body.created_by_nik = existing.created_by_nik || body.created_by_nik;
     body.created_by_nama = existing.created_by_nama || body.created_by_nama;
+
+    body.peninjau_dosen_id = existing.peninjau_dosen_id || body.peninjau_dosen_id;
+    body.peninjau_nama = existing.peninjau_nama || body.peninjau_nama;
+    body.peninjau_nik = existing.peninjau_nik || body.peninjau_nik;
 
     const saved = await saveReviewSoalForm(body);
     return NextResponse.json({ success: true, data: saved });
