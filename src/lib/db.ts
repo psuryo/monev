@@ -11,7 +11,9 @@ import {
   MataKuliah,
   ReviewSoalFormData,
   ReviewSoalItem,
-  DEFAULT_REVIEW_SOAL_POINTS
+  DEFAULT_REVIEW_SOAL_POINTS,
+  Role,
+  MonevDailyLogItem
 } from '@/types/monev';
 
 // In-memory fallback mock dataset (in case Neon DATABASE_URL is not reachable or not set)
@@ -49,6 +51,38 @@ let mockMataKuliah: MataKuliah[] = [
 
 let mockMonevForms: MonevFormData[] = [];
 let mockReviewSoalForms: ReviewSoalFormData[] = [];
+
+let mockRoles: Role[] = [
+  { id: 'role-1', code: 'ADMIN', nama: 'Administrator', deskripsi: 'Pengelola pengguna dan konfigurasi sistem' },
+  { id: 'role-2', code: 'MONEV', nama: 'Tim Monev', deskripsi: 'Pencatat log harian dan pemantau aktivitas monev' },
+  { id: 'role-3', code: 'KAPRODI', nama: 'Ketua Program Studi', deskripsi: 'Verifikator dan penandatangan dokumen prodi' },
+  { id: 'role-4', code: 'DOSEN', nama: 'Dosen', deskripsi: 'Dosen pengampu dan dosen wali' },
+];
+
+let mockDosenRoles: { dosen_id: string; role_code: string }[] = [
+  { dosen_id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', role_code: 'DOSEN' },
+  { dosen_id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', role_code: 'ADMIN' },
+  { dosen_id: '80cca824-a86c-4bb2-8acc-0519a2224bdd', role_code: 'MONEV' },
+  { dosen_id: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', role_code: 'DOSEN' },
+  { dosen_id: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', role_code: 'KAPRODI' },
+  { dosen_id: 'd2a1b3c4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', role_code: 'DOSEN' },
+  { dosen_id: 'e3b2c1d0-f4e5-4b6a-9d8c-1f2e3d4c5b6a', role_code: 'DOSEN' },
+];
+
+let mockMonevDailyLogs: MonevDailyLogItem[] = [
+  {
+    id: 'log-1',
+    dosen_id: '80cca824-a86c-4bb2-8acc-0519a2224bdd',
+    dosen_nama: 'Philipus Suryo Subandoro, S.Kom., M.Kom.',
+    dosen_nik: '581000020',
+    tanggal: '2026-11-19',
+    kegiatan: 'Monitoring Pelaksanaan Perwalian Semester Gasal',
+    deskripsi: 'Memeriksa rekapitulasi kehadiran dan konsultasi mahasiswa angkatan 2024 dan 2025 di prodi Informatika.',
+    kendala: 'Sebagian mahasiswa terlambat menyerahkan lembar pra-KRS.',
+    tindak_lanjut: 'Menginstruksikan dosen wali untuk menyusulkan lembar catatan temuan.',
+    created_at: new Date().toISOString(),
+  }
+];
 
 // ==========================================
 // DB CLIENT & HELPERS
@@ -182,28 +216,74 @@ export async function getProdiList(): Promise<Prodi[]> {
   }
 }
 
-export async function getDosenList(): Promise<Dosen[]> {
-  const sql = getDbClient();
-  if (!sql) return mockDosens;
+function getMockDosenRoles(dosenId: string): string[] {
+  const matches = mockDosenRoles.filter(dr => dr.dosen_id === dosenId).map(dr => dr.role_code);
+  return matches.length > 0 ? matches : ['DOSEN'];
+}
 
+export async function getRolesForDosenId(dosenId: string): Promise<string[]> {
+  const sql = getDbClient();
+  if (!sql || !isValidUuid(dosenId)) {
+    return getMockDosenRoles(dosenId);
+  }
   try {
     const rows = await sql`
-      SELECT d.id, d.nik, d.nama, d.email, d.prodi_id, p.nama as prodi_nama
-      FROM dosen d
-      JOIN prodi p ON d.prodi_id = p.id
-      ORDER BY d.nama ASC
+      SELECT r.code 
+      FROM dosen_roles dr
+      JOIN roles r ON dr.role_id = r.id
+      WHERE dr.dosen_id = ${dosenId}
     `;
+    const codes = rows.map((r: any) => r.code);
+    return codes.length > 0 ? codes : ['DOSEN'];
+  } catch {
+    return ['DOSEN'];
+  }
+}
+
+export async function getDosenList(): Promise<Dosen[]> {
+  const sql = getDbClient();
+  if (!sql) {
+    return mockDosens.map(d => ({ ...d, roles: getMockDosenRoles(d.id) }));
+  }
+
+  try {
+    let rows: any[];
+    try {
+      rows = await sql`
+        SELECT 
+          d.id, d.nik, d.nama, d.email, d.prodi_id, p.nama as prodi_nama,
+          COALESCE(
+            array_remove(array_agg(DISTINCT r.code), NULL),
+            ARRAY['DOSEN']::text[]
+          ) as roles
+        FROM dosen d
+        JOIN prodi p ON d.prodi_id = p.id
+        LEFT JOIN dosen_roles dr ON d.id = dr.dosen_id
+        LEFT JOIN roles r ON dr.role_id = r.id
+        GROUP BY d.id, d.nik, d.nama, d.email, d.prodi_id, p.nama
+        ORDER BY d.nama ASC
+      `;
+    } catch {
+      rows = await sql`
+        SELECT d.id, d.nik, d.nama, d.email, d.prodi_id, p.nama as prodi_nama
+        FROM dosen d
+        JOIN prodi p ON d.prodi_id = p.id
+        ORDER BY d.nama ASC
+      `;
+      rows = rows.map(r => ({ ...r, roles: ['DOSEN'] }));
+    }
     return rows as Dosen[];
   } catch (error) {
     console.error('getDosenList error:', error);
-    return mockDosens;
+    return mockDosens.map(d => ({ ...d, roles: getMockDosenRoles(d.id) }));
   }
 }
 
 export async function getDosenById(id: string): Promise<Dosen | null> {
   const sql = getDbClient();
   if (!sql || !isValidUuid(id)) {
-    return mockDosens.find(d => d.id === id) || null;
+    const d = mockDosens.find(d => d.id === id);
+    return d ? { ...d, roles: getMockDosenRoles(d.id) } : null;
   }
   try {
     const rows = await sql`
@@ -213,7 +293,10 @@ export async function getDosenById(id: string): Promise<Dosen | null> {
       WHERE d.id = ${id}
       LIMIT 1
     `;
-    return (rows[0] as Dosen) || null;
+    if (!rows[0]) return null;
+    const dosen = rows[0] as Dosen;
+    dosen.roles = await getRolesForDosenId(dosen.id);
+    return dosen;
   } catch (error) {
     console.error('getDosenById error:', error);
     return null;
@@ -224,7 +307,8 @@ export async function getDosenByEmail(email: string): Promise<Dosen | null> {
   const cleanEmail = email.trim().toLowerCase();
   const sql = getDbClient();
   if (!sql) {
-    return mockDosens.find(d => d.email?.toLowerCase() === cleanEmail) || null;
+    const d = mockDosens.find(d => d.email?.toLowerCase() === cleanEmail);
+    return d ? { ...d, roles: getMockDosenRoles(d.id) } : null;
   }
   try {
     const rows = await sql`
@@ -234,7 +318,10 @@ export async function getDosenByEmail(email: string): Promise<Dosen | null> {
       WHERE LOWER(d.email) = ${cleanEmail}
       LIMIT 1
     `;
-    return (rows[0] as Dosen) || null;
+    if (!rows[0]) return null;
+    const dosen = rows[0] as Dosen;
+    dosen.roles = await getRolesForDosenId(dosen.id);
+    return dosen;
   } catch (error) {
     console.error('getDosenByEmail error:', error);
     return null;
@@ -245,7 +332,8 @@ export async function getDosenByNik(nik: string): Promise<Dosen | null> {
   const cleanNik = nik.trim();
   const sql = getDbClient();
   if (!sql) {
-    return mockDosens.find(d => d.nik === cleanNik) || null;
+    const d = mockDosens.find(d => d.nik === cleanNik);
+    return d ? { ...d, roles: getMockDosenRoles(d.id) } : null;
   }
   try {
     const rows = await sql`
@@ -255,7 +343,10 @@ export async function getDosenByNik(nik: string): Promise<Dosen | null> {
       WHERE d.nik = ${cleanNik}
       LIMIT 1
     `;
-    return (rows[0] as Dosen) || null;
+    if (!rows[0]) return null;
+    const dosen = rows[0] as Dosen;
+    dosen.roles = await getRolesForDosenId(dosen.id);
+    return dosen;
   } catch (error) {
     console.error('getDosenByNik error:', error);
     return null;
@@ -1524,6 +1615,268 @@ export async function deleteReviewSoalForm(id: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('deleteReviewSoalForm error:', error);
+    return false;
+  }
+}
+
+// ==========================================
+// ROLES & RBAC MANAGEMENT
+// ==========================================
+
+export async function getRoles(): Promise<Role[]> {
+  const sql = getDbClient();
+  if (!sql) return mockRoles;
+
+  try {
+    const rows = await sql`SELECT id, code, nama, deskripsi, created_at FROM roles ORDER BY code ASC`;
+    return rows as Role[];
+  } catch (error) {
+    console.error('getRoles error:', error);
+    return mockRoles;
+  }
+}
+
+export async function setDosenRoles(dosenId: string, roleCodes: string[]): Promise<boolean> {
+  const sql = getDbClient();
+  if (!sql || !isValidUuid(dosenId)) {
+    // In mock mode: replace in mockDosenRoles
+    mockDosenRoles = mockDosenRoles.filter(dr => dr.dosen_id !== dosenId);
+    roleCodes.forEach(code => {
+      mockDosenRoles.push({ dosen_id: dosenId, role_code: code });
+    });
+    return true;
+  }
+
+  try {
+    // Delete existing roles for this dosen
+    await sql`DELETE FROM dosen_roles WHERE dosen_id = ${dosenId}`;
+
+    if (roleCodes.length > 0) {
+      // Find role ids for the given codes
+      const roleRows = await sql`SELECT id, code FROM roles WHERE code = ANY(${roleCodes})`;
+      for (const r of roleRows) {
+        await sql`
+          INSERT INTO dosen_roles (dosen_id, role_id)
+          VALUES (${dosenId}, ${r.id})
+          ON CONFLICT DO NOTHING
+        `;
+      }
+    }
+    return true;
+  } catch (error) {
+    console.error('setDosenRoles error:', error);
+    return false;
+  }
+}
+
+// ==========================================
+// MONEV DAILY LOGS
+// ==========================================
+
+export async function getMonevDailyLogs(filter?: { dosen_id?: string; tanggal?: string }): Promise<MonevDailyLogItem[]> {
+  const sql = getDbClient();
+  if (!sql) {
+    let result = [...mockMonevDailyLogs];
+    if (filter?.dosen_id) {
+      result = result.filter(item => item.dosen_id === filter.dosen_id);
+    }
+    if (filter?.tanggal) {
+      result = result.filter(item => item.tanggal === filter.tanggal);
+    }
+    return result.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+  }
+
+  try {
+    let rows: any[];
+    if (filter?.dosen_id && filter?.tanggal) {
+      rows = await sql`
+        SELECT l.*, d.nama as dosen_nama, d.nik as dosen_nik
+        FROM monev_daily_logs l
+        JOIN dosen d ON l.dosen_id = d.id
+        WHERE l.dosen_id = ${filter.dosen_id} AND l.tanggal = ${filter.tanggal}
+        ORDER BY l.tanggal DESC, l.created_at DESC
+      `;
+    } else if (filter?.dosen_id) {
+      rows = await sql`
+        SELECT l.*, d.nama as dosen_nama, d.nik as dosen_nik
+        FROM monev_daily_logs l
+        JOIN dosen d ON l.dosen_id = d.id
+        WHERE l.dosen_id = ${filter.dosen_id}
+        ORDER BY l.tanggal DESC, l.created_at DESC
+      `;
+    } else if (filter?.tanggal) {
+      rows = await sql`
+        SELECT l.*, d.nama as dosen_nama, d.nik as dosen_nik
+        FROM monev_daily_logs l
+        JOIN dosen d ON l.dosen_id = d.id
+        WHERE l.tanggal = ${filter.tanggal}
+        ORDER BY l.tanggal DESC, l.created_at DESC
+      `;
+    } else {
+      rows = await sql`
+        SELECT l.*, d.nama as dosen_nama, d.nik as dosen_nik
+        FROM monev_daily_logs l
+        JOIN dosen d ON l.dosen_id = d.id
+        ORDER BY l.tanggal DESC, l.created_at DESC
+      `;
+    }
+
+    return rows.map(r => ({
+      ...r,
+      tanggal: formatDateForDb(r.tanggal),
+      created_at: r.created_at ? new Date(r.created_at).toISOString() : undefined,
+      updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+    })) as MonevDailyLogItem[];
+  } catch (error) {
+    console.error('getMonevDailyLogs error:', error);
+    return mockMonevDailyLogs;
+  }
+}
+
+export async function getMonevDailyLogById(id: string): Promise<MonevDailyLogItem | null> {
+  const sql = getDbClient();
+  if (!sql || !isValidUuid(id)) {
+    return mockMonevDailyLogs.find(l => l.id === id) || null;
+  }
+
+  try {
+    const rows = await sql`
+      SELECT l.*, d.nama as dosen_nama, d.nik as dosen_nik
+      FROM monev_daily_logs l
+      JOIN dosen d ON l.dosen_id = d.id
+      WHERE l.id = ${id}
+      LIMIT 1
+    `;
+    if (!rows[0]) return null;
+    const r = rows[0];
+    return {
+      ...r,
+      tanggal: formatDateForDb(r.tanggal),
+      created_at: r.created_at ? new Date(r.created_at).toISOString() : undefined,
+      updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+    } as MonevDailyLogItem;
+  } catch (error) {
+    console.error('getMonevDailyLogById error:', error);
+    return null;
+  }
+}
+
+export async function createMonevDailyLog(data: {
+  dosen_id: string;
+  kegiatan: string;
+  deskripsi: string;
+  tanggal?: string;
+  kendala?: string;
+  tindak_lanjut?: string;
+}): Promise<MonevDailyLogItem> {
+  const sql = getDbClient();
+  const safeTanggal = formatDateForDb(data.tanggal, new Date().toISOString().split('T')[0]);
+
+  if (!sql || !isValidUuid(data.dosen_id)) {
+    const dosen = mockDosens.find(d => d.id === data.dosen_id);
+    const newLog: MonevDailyLogItem = {
+      id: `log-${Date.now()}`,
+      dosen_id: data.dosen_id,
+      dosen_nama: dosen?.nama || 'Dosen',
+      dosen_nik: dosen?.nik || '-',
+      tanggal: safeTanggal,
+      kegiatan: data.kegiatan,
+      deskripsi: data.deskripsi,
+      kendala: data.kendala,
+      tindak_lanjut: data.tindak_lanjut,
+      created_at: new Date().toISOString(),
+    };
+    mockMonevDailyLogs.unshift(newLog);
+    return newLog;
+  }
+
+  try {
+    const rows = await sql`
+      INSERT INTO monev_daily_logs (
+        dosen_id, tanggal, kegiatan, deskripsi, kendala, tindak_lanjut
+      ) VALUES (
+        ${data.dosen_id},
+        ${safeTanggal},
+        ${data.kegiatan},
+        ${data.deskripsi},
+        ${data.kendala || null},
+        ${data.tindak_lanjut || null}
+      )
+      RETURNING *
+    `;
+
+    const r = rows[0];
+    const dosen = await getDosenById(data.dosen_id);
+    return {
+      ...r,
+      dosen_nama: dosen?.nama,
+      dosen_nik: dosen?.nik,
+      tanggal: formatDateForDb(r.tanggal),
+      created_at: r.created_at ? new Date(r.created_at).toISOString() : undefined,
+      updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+    } as MonevDailyLogItem;
+  } catch (error) {
+    console.error('createMonevDailyLog error:', error);
+    throw error;
+  }
+}
+
+export async function updateMonevDailyLog(
+  id: string,
+  data: Partial<MonevDailyLogItem>
+): Promise<MonevDailyLogItem | null> {
+  const sql = getDbClient();
+  const safeTanggal = data.tanggal ? formatDateForDb(data.tanggal) : undefined;
+
+  if (!sql || !isValidUuid(id)) {
+    const index = mockMonevDailyLogs.findIndex(l => l.id === id);
+    if (index === -1) return null;
+    mockMonevDailyLogs[index] = {
+      ...mockMonevDailyLogs[index],
+      ...data,
+      tanggal: safeTanggal || mockMonevDailyLogs[index].tanggal,
+      updated_at: new Date().toISOString(),
+    };
+    return mockMonevDailyLogs[index];
+  }
+
+  try {
+    const existing = await getMonevDailyLogById(id);
+    if (!existing) return null;
+
+    const rows = await sql`
+      UPDATE monev_daily_logs
+      SET
+        tanggal = ${safeTanggal || existing.tanggal},
+        kegiatan = ${data.kegiatan !== undefined ? data.kegiatan : existing.kegiatan},
+        deskripsi = ${data.deskripsi !== undefined ? data.deskripsi : existing.deskripsi},
+        kendala = ${data.kendala !== undefined ? data.kendala : existing.kendala || null},
+        tindak_lanjut = ${data.tindak_lanjut !== undefined ? data.tindak_lanjut : existing.tindak_lanjut || null},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    if (!rows[0]) return null;
+    return getMonevDailyLogById(id);
+  } catch (error) {
+    console.error('updateMonevDailyLog error:', error);
+    throw error;
+  }
+}
+
+export async function deleteMonevDailyLog(id: string): Promise<boolean> {
+  const sql = getDbClient();
+  if (!sql || !isValidUuid(id)) {
+    mockMonevDailyLogs = mockMonevDailyLogs.filter(l => l.id !== id);
+    return true;
+  }
+
+  try {
+    await sql`DELETE FROM monev_daily_logs WHERE id = ${id}`;
+    return true;
+  } catch (error) {
+    console.error('deleteMonevDailyLog error:', error);
     return false;
   }
 }

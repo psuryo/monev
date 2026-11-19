@@ -10,7 +10,8 @@ declare module 'next-auth' {
       email?: string;
       prodi_id?: string;
       prodi_nama?: string;
-      role?: 'DOSEN' | 'KAPRODI' | 'ADMIN';
+      role?: 'DOSEN' | 'KAPRODI' | 'ADMIN' | 'MONEV' | string;
+      roles?: string[];
     } & DefaultSession['user'];
   }
 
@@ -19,7 +20,8 @@ declare module 'next-auth' {
     nik?: string;
     prodi_id?: string;
     prodi_nama?: string;
-    role?: 'DOSEN' | 'KAPRODI' | 'ADMIN';
+    role?: 'DOSEN' | 'KAPRODI' | 'ADMIN' | 'MONEV' | string;
+    roles?: string[];
   }
 }
 
@@ -29,6 +31,7 @@ declare module 'next-auth/jwt' {
     nik?: string;
     prodi_id?: string;
     prodi_nama?: string;
-    role?: 'DOSEN' | 'KAPRODI' | 'ADMIN';
+    role?: 'DOSEN' | 'KAPRODI' | 'ADMIN' | 'MONEV' | string;
+    roles?: string[];
   }
 }

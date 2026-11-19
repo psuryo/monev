@@ -17,6 +17,29 @@ export interface Dosen {
   email?: string;
   prodi_id: string;
   prodi_nama?: string;
+  roles?: string[];
+}
+
+export interface Role {
+  id: string;
+  code: string;
+  nama: string;
+  deskripsi?: string;
+  created_at?: string;
+}
+
+export interface MonevDailyLogItem {
+  id?: string;
+  dosen_id: string;
+  dosen_nama?: string;
+  dosen_nik?: string;
+  tanggal: string;
+  kegiatan: string;
+  deskripsi: string;
+  kendala?: string;
+  tindak_lanjut?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Mahasiswa {

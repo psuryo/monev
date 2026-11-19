@@ -12,7 +12,9 @@ import {
   User, 
   ShieldCheck, 
   LogIn,
-  FileCheck2 
+  FileCheck2,
+  ClipboardList,
+  Users
 } from 'lucide-react';
 import { DbStatusBadge } from './DbStatusBadge';
 
@@ -30,6 +32,9 @@ export function Navbar({ isDbConnected }: { isDbConnected?: boolean }) {
   const lecturerNik = (session?.user as any)?.nik;
   const lecturerProdi = (session?.user as any)?.prodi_nama;
   const userRole = (session?.user as any)?.role;
+  const userRoles: string[] = (session?.user as any)?.roles || (userRole ? [userRole] : ['DOSEN']);
+  const canViewDailyLog = userRoles.includes('MONEV') || userRoles.includes('ADMIN');
+  const canManageUsers = userRoles.includes('ADMIN');
 
   return (
     <header className="no-print sticky top-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-xs">
@@ -127,6 +132,32 @@ export function Navbar({ isDbConnected }: { isDbConnected?: boolean }) {
             </Link>
 
             <Link
+              href="/monev/daily-log"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                pathname.startsWith('/monev/daily-log')
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 font-bold'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-emerald-600" />
+              Log Monev
+            </Link>
+
+            {canManageUsers && (
+              <Link
+                href="/admin/users"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                  pathname.startsWith('/admin/users')
+                    ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 font-bold'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5 text-purple-600" />
+                Kelola User
+              </Link>
+            )}
+
+            <Link
               href="/monev/new"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                 pathname === '/monev/new'
@@ -150,9 +181,19 @@ export function Navbar({ isDbConnected }: { isDbConnected?: boolean }) {
                     <span className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 max-w-[160px]">
                       {lecturerName}
                     </span>
-                    {userRole === 'ADMIN' && (
-                      <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.2 rounded">
+                    {userRoles.includes('ADMIN') && (
+                      <span className="text-[9px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.2 rounded">
                         ADMIN
+                      </span>
+                    )}
+                    {userRoles.includes('MONEV') && !userRoles.includes('ADMIN') && (
+                      <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">
+                        MONEV
+                      </span>
+                    )}
+                    {userRoles.includes('KAPRODI') && (
+                      <span className="text-[9px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded">
+                        KAPRODI
                       </span>
                     )}
                   </div>

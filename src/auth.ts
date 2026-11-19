@@ -41,6 +41,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         if (dosen) {
+          const roles = dosen.roles && dosen.roles.length > 0 ? dosen.roles : ['DOSEN'];
+          const primaryRole = roles.includes('ADMIN')
+            ? 'ADMIN'
+            : roles.includes('KAPRODI')
+            ? 'KAPRODI'
+            : roles.includes('MONEV')
+            ? 'MONEV'
+            : 'DOSEN';
+
           return {
             id: dosen.id,
             name: dosen.nama,
@@ -49,7 +58,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             nik: dosen.nik,
             prodi_id: dosen.prodi_id,
             prodi_nama: dosen.prodi_nama,
-            role: 'DOSEN',
+            role: primaryRole,
+            roles: roles,
           };
         }
         return null;
@@ -64,6 +74,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.prodi_id = (user as any).prodi_id;
         token.prodi_nama = (user as any).prodi_nama;
         token.role = (user as any).role || 'DOSEN';
+        token.roles = (user as any).roles || [(user as any).role || 'DOSEN'];
       }
 
       // If logging in via Keycloak provider, link to database Dosen record
@@ -89,11 +100,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.email = dosen.email || email;
           
           const realmRoles = (profile as any)?.realm_access?.roles || [];
-          if (realmRoles.includes('admin') || realmRoles.includes('kaprodi')) {
-            token.role = realmRoles.includes('admin') ? 'ADMIN' : 'KAPRODI';
-          } else {
-            token.role = 'DOSEN';
-          }
+          const dbRoles = dosen.roles || ['DOSEN'];
+          const mergedRoles = new Set<string>(dbRoles);
+          if (realmRoles.includes('admin')) mergedRoles.add('ADMIN');
+          if (realmRoles.includes('kaprodi')) mergedRoles.add('KAPRODI');
+          if (realmRoles.includes('monev')) mergedRoles.add('MONEV');
+
+          const roleList = Array.from(mergedRoles);
+          token.roles = roleList;
+          token.role = roleList.includes('ADMIN')
+            ? 'ADMIN'
+            : roleList.includes('KAPRODI')
+            ? 'KAPRODI'
+            : roleList.includes('MONEV')
+            ? 'MONEV'
+            : 'DOSEN';
         }
       }
 
@@ -107,6 +128,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.prodi_id = token.prodi_id as string;
         session.user.prodi_nama = token.prodi_nama as string;
         session.user.role = (token.role as any) || 'DOSEN';
+        session.user.roles = (token.roles as string[]) || [(token.role as string) || 'DOSEN'];
         if (token.name) session.user.name = token.name;
         if (token.email) session.user.email = token.email;
       }
