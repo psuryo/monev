@@ -20,7 +20,7 @@ import {
   Layers,
   ArrowRight
 } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
+import { DashboardLayout } from '@/components/DashboardLayout';
 import { ReviewSoalFormData, Prodi } from '@/types/monev';
 import { canModifyReviewSoal } from '@/lib/review-soal-permissions';
 
@@ -107,11 +107,7 @@ export default function ReviewSoalListPage() {
   const uasForms = forms.filter(f => f.waktu_peninjauan?.includes('UAS')).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-      <Navbar isDbConnected={isDbConnected} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+    <DashboardLayout isDbConnected={isDbConnected}>
         {/* Banner Section */}
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white rounded-2xl p-6 sm:p-8 shadow-md mb-8 relative overflow-hidden">
           <div className="relative z-10 max-w-3xl">
@@ -375,7 +371,6 @@ export default function ReviewSoalListPage() {
           )}
         </div>
 
-      </main>
-    </div>
+    </DashboardLayout>
   );
 }

@@ -18,7 +18,7 @@ import {
   GraduationCap,
   Calendar
 } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
+import { DashboardLayout } from '@/components/DashboardLayout';
 import { MataKuliah, Prodi } from '@/types/monev';
 
 export default function MataKuliahPage() {
@@ -194,11 +194,7 @@ export default function MataKuliahPage() {
   const totalSks = filteredCourses.reduce((acc, c) => acc + (c.sks || 0), 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-      <Navbar isDbConnected={isDbConnected} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+    <DashboardLayout isDbConnected={isDbConnected}>
         {/* Banner Section */}
         <div className="bg-gradient-to-r from-indigo-900 via-blue-900 to-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-md mb-8 relative overflow-hidden">
           <div className="relative z-10 max-w-3xl">
@@ -439,8 +435,6 @@ export default function MataKuliahPage() {
           )}
         </div>
 
-      </main>
-
       {/* Modal Add / Edit Mata Kuliah */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
@@ -597,6 +591,6 @@ export default function MataKuliahPage() {
         </div>
       )}
 
-    </div>
+    </DashboardLayout>
   );
 }

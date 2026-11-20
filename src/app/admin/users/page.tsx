@@ -20,7 +20,7 @@ import {
   Mail,
   Fingerprint
 } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
+import { DashboardLayout } from '@/components/DashboardLayout';
 import { Dosen, Prodi, Role } from '@/types/monev';
 import { isAdmin } from '@/lib/permissions';
 
@@ -212,8 +212,7 @@ export default function AdminUsersPage() {
 
   if (!isUserAdmin && !loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-        <Navbar />
+      <DashboardLayout>
         <main className="max-w-3xl mx-auto px-4 py-16 text-center">
           <div className="p-8 bg-white dark:bg-slate-800 rounded-2xl border border-rose-200 dark:border-rose-900 shadow-xs">
             <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto mb-3" />
@@ -231,16 +230,15 @@ export default function AdminUsersPage() {
             </Link>
           </div>
         </main>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-      <Navbar />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb */}
+    <DashboardLayout>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main>
+          {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-4">
           <Link
             href="/"
@@ -597,5 +595,6 @@ export default function AdminUsersPage() {
         </div>
       )}
     </div>
+    </DashboardLayout>
   );
 }

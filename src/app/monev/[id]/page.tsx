@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Printer, Edit3, ArrowLeft, Download, CheckCircle2 } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
+import { DashboardLayout } from '@/components/DashboardLayout';
 import { MonevPrintLayout } from '@/components/MonevPrintLayout';
 import { MonevFormData } from '@/types/monev';
 
@@ -41,17 +41,18 @@ export default function ViewMonevPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <p className="text-xs text-slate-500">Memuat formulir Monev...</p>
-      </div>
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center p-16">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+          <p className="text-xs text-slate-500">Memuat formulir Monev...</p>
+        </div>
+      </DashboardLayout>
     );
   }
 
   if (error || !form) {
     return (
-      <div className="min-h-screen bg-slate-100 dark:bg-slate-900">
-        <Navbar />
+      <DashboardLayout>
         <div className="max-w-xl mx-auto mt-12 p-6 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
           <h2 className="text-base font-bold text-red-600 mb-2">Terjadi Kesalahan</h2>
           <p className="text-xs text-slate-500 mb-4">{error || 'Data formulir tidak tersedia'}</p>
@@ -62,15 +63,12 @@ export default function ViewMonevPage() {
             Kembali ke Dashboard
           </button>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-200 dark:bg-slate-900 flex flex-col items-center">
-      <div className="w-full">
-        <Navbar />
-      </div>
+    <DashboardLayout>
 
       {/* Floating Action Bar */}
       <div className="no-print w-full max-w-4xl px-4 mt-6 mb-4 flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 p-3.5 rounded-xl shadow-xs">
@@ -115,6 +113,6 @@ export default function ViewMonevPage() {
           <MonevPrintLayout data={form} />
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

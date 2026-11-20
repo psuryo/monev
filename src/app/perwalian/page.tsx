@@ -25,11 +25,12 @@ import {
   X,
   Building2,
   Calendar,
-  Clock
+  Clock,
+  ClipboardList,
+  ChevronRight,
 } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
+import { DashboardLayout } from '@/components/DashboardLayout';
 import { Mahasiswa, Prodi, Dosen } from '@/types/monev';
-import { StudentConsultationTracker } from '@/components/StudentConsultationTracker';
 
 
 export default function PerwalianManagementPage() {
@@ -46,8 +47,8 @@ export default function PerwalianManagementPage() {
   const [loading, setLoading] = useState(true);
   const [isDbConnected, setIsDbConnected] = useState(false);
 
-  // Active Tab: 'my-advisees' | 'pool' | 'monitoring'
-  const [activeTab, setActiveTab] = useState<'my-advisees' | 'pool' | 'monitoring'>('my-advisees');
+  // Active Tab: 'my-advisees' | 'pool'
+  const [activeTab, setActiveTab] = useState<'my-advisees' | 'pool'>('my-advisees');
 
 
   // Filters
@@ -304,11 +305,7 @@ export default function PerwalianManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-      <Navbar isDbConnected={isDbConnected} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+    <DashboardLayout isDbConnected={isDbConnected}>
         {/* Header & Lecturer Info Card */}
         <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-md mb-8 relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -472,18 +469,13 @@ export default function PerwalianManagementPage() {
               Mahasiswa Bimbingan Saya ({myAdvisees.length})
             </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('monitoring')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'monitoring'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-              }`}
+            <Link
+              href="/monev/monitoring"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
             >
-              <Clock className="w-4 h-4 text-emerald-500" />
-              Monitoring Status Konsultasi
-            </button>
+              <ClipboardList className="w-4 h-4 text-emerald-500" />
+              Monitoring Konsultasi
+            </Link>
 
             <button
               type="button"
@@ -522,9 +514,8 @@ export default function PerwalianManagementPage() {
 
         </div>
 
-        {/* Global Filter Bar (Hidden in Monitoring Tab as it has its own comprehensive filters) */}
-        {activeTab !== 'monitoring' && (
-          <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs mb-6 flex flex-wrap gap-3 items-center justify-between">
+        {/* Global Filter Bar */}
+        <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs mb-6 flex flex-wrap gap-3 items-center justify-between">
           
           <div className="flex flex-wrap items-center gap-3 grow max-w-3xl">
             {/* Search */}
@@ -615,15 +606,6 @@ export default function PerwalianManagementPage() {
           )}
 
         </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* TAB 0: MONITORING STATUS KONSULTASI / PERWALIAN */}
-        {/* ========================================================================= */}
-        {activeTab === 'monitoring' && (
-          <StudentConsultationTracker />
-        )}
-
 
         {/* ========================================================================= */}
         {/* TAB 1: MAHASISWA BIMBINGAN SAYA */}
@@ -995,8 +977,6 @@ export default function PerwalianManagementPage() {
           </div>
         )}
 
-      </main>
-
       {/* ========================================================================= */}
       {/* MODAL: DAFTARKAN MAHASISWA BARU */}
       {/* ========================================================================= */}
@@ -1121,6 +1101,6 @@ export default function PerwalianManagementPage() {
         </div>
       )}
 
-    </div>
+    </DashboardLayout>
   );
 }

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ShieldAlert, Printer, ArrowLeft } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
+import { DashboardLayout } from '@/components/DashboardLayout';
 import { ReviewSoalFormEditor } from '@/components/ReviewSoalFormEditor';
 import { ReviewSoalFormData } from '@/types/monev';
 import { canModifyReviewSoal } from '@/lib/review-soal-permissions';
@@ -43,17 +43,18 @@ export default function EditReviewSoalPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <p className="text-xs text-slate-500">Memuat formulir review soal...</p>
-      </div>
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center p-16">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+          <p className="text-xs text-slate-500">Memuat formulir review soal...</p>
+        </div>
+      </DashboardLayout>
     );
   }
 
   if (error || !form) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-        <Navbar />
+      <DashboardLayout>
         <div className="max-w-xl mx-auto mt-12 p-6 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
           <h2 className="text-base font-bold text-red-600 mb-2">Terjadi Kesalahan</h2>
           <p className="text-xs text-slate-500 mb-4">{error || 'Data tidak ditemukan'}</p>
@@ -64,7 +65,7 @@ export default function EditReviewSoalPage() {
             Kembali ke Daftar
           </button>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -72,8 +73,7 @@ export default function EditReviewSoalPage() {
 
   if (!canModify) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-        <Navbar />
+      <DashboardLayout>
         <div className="max-w-xl mx-auto mt-12 p-6 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm text-center">
           <div className="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-3">
             <ShieldAlert className="w-6 h-6" />
@@ -97,17 +97,15 @@ export default function EditReviewSoalPage() {
             </button>
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-      <Navbar />
+    <DashboardLayout>
       <main className="py-6">
         <ReviewSoalFormEditor initialData={form} isEditMode={true} />
       </main>
-    </div>
+    </DashboardLayout>
   );
 }
-
