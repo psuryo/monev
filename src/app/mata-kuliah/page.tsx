@@ -108,8 +108,30 @@ export default function MataKuliahPage() {
     e.preventDefault();
     setModalError(null);
 
-    if (!modalForm.kode.trim() || !modalForm.nama.trim() || !modalForm.prodi_id || !modalForm.kurikulum.trim()) {
+    const cleanKode = modalForm.kode.trim().toUpperCase();
+    const cleanNama = modalForm.nama.trim();
+    const cleanKurikulum = modalForm.kurikulum.trim();
+
+    if (!cleanKode || !cleanNama || !modalForm.prodi_id || !cleanKurikulum) {
       setModalError('Kode MK, Nama MK, Kurikulum (Tahun), dan Program Studi wajib diisi.');
+      return;
+    }
+
+    // Client-side duplicate check: subject number (kode) on the same curriculum
+    const existingDuplicate = courses.find(c => 
+      (!editingCourse || c.id !== editingCourse.id) &&
+      c.kode.trim().toUpperCase() === cleanKode &&
+      (c.kurikulum || '2024').trim() === cleanKurikulum
+    );
+
+    if (existingDuplicate) {
+      setModalError(
+        `Mata kuliah dengan nomor/kode "${cleanKode}" sudah terdaftar pada Kurikulum ${cleanKurikulum}${
+          existingDuplicate.prodi_id !== modalForm.prodi_id && existingDuplicate.prodi_nama
+            ? ` (${existingDuplicate.prodi_nama})`
+            : ''
+        }. Sistem menolak kode mata kuliah yang sama pada kurikulum yang sama.`
+      );
       return;
     }
 
@@ -121,7 +143,12 @@ export default function MataKuliahPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(modalForm),
+        body: JSON.stringify({
+          ...modalForm,
+          kode: cleanKode,
+          nama: cleanNama,
+          kurikulum: cleanKurikulum,
+        }),
       });
 
       const json = await res.json();
@@ -572,7 +599,7 @@ export default function MataKuliahPage() {
               </div>
 
               <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
-                💡 <strong>Info Kurikulum:</strong> Memungkinkan nomor/kode mata kuliah yang sama digunakan secara terpisah untuk tahun kurikulum yang berbeda (misal: 2024, 2025).
+                💡 <strong>Info Kurikulum:</strong> Memungkinkan nomor/kode mata kuliah yang sama digunakan secara terpisah untuk tahun kurikulum yang berbeda (misal: 2024, 2025). Pada kurikulum yang sama, sistem akan menolak mata kuliah dengan nomor/kode yang sama.
               </div>
 
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">

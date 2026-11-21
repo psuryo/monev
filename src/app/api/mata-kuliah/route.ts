@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMataKuliahList, createMataKuliah } from '@/lib/db';
+import { getMataKuliahList, createMataKuliah, findMataKuliahByKodeAndKurikulum } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,17 +29,30 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    const cleanKode = kode.toString().trim().toUpperCase();
+    const cleanKurikulum = kurikulum?.toString().trim() || '2024';
+
+    // Validate duplicate subject number/code on the same curriculum
+    const existingCourse = await findMataKuliahByKodeAndKurikulum(cleanKode, cleanKurikulum);
+    if (existingCourse) {
+      return NextResponse.json({
+        success: false,
+        error: `Mata kuliah dengan nomor/kode "${cleanKode}" sudah terdaftar pada Kurikulum ${cleanKurikulum}. Sistem menolak kode mata kuliah yang sama pada kurikulum yang sama.`
+      }, { status: 400 });
+    }
+
     const created = await createMataKuliah({
-      kode,
-      nama,
+      kode: cleanKode,
+      nama: nama.toString().trim(),
       sks: Number(sks) || 3,
       semester: Number(semester) || 1,
-      kurikulum: kurikulum?.toString().trim() || '2024',
+      kurikulum: cleanKurikulum,
       prodi_id
     });
 
     return NextResponse.json({ success: true, data: created });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const isValidationError = error.message?.includes('sudah terdaftar') || error.message?.includes('wajib diisi');
+    return NextResponse.json({ success: false, error: error.message }, { status: isValidationError ? 400 : 500 });
   }
 }

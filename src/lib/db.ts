@@ -1217,6 +1217,73 @@ export async function getMataKuliahById(id: string): Promise<MataKuliah | null> 
   }
 }
 
+export async function findMataKuliahByKodeAndKurikulum(
+  kode: string,
+  kurikulum?: string,
+  excludeId?: string
+): Promise<MataKuliah | null> {
+  const cleanKode = kode.trim().toUpperCase();
+  const cleanKurikulum = kurikulum ? kurikulum.trim() : undefined;
+  const sql = getDbClient();
+
+  if (!sql) {
+    const found = mockMataKuliah.find(m => {
+      if (excludeId && m.id === excludeId) return false;
+      if (m.kode.trim().toUpperCase() !== cleanKode) return false;
+      if (cleanKurikulum) {
+        return (m.kurikulum || '2024').trim() === cleanKurikulum;
+      }
+      return true;
+    });
+    return found || null;
+  }
+
+  try {
+    let rows: any[];
+    if (cleanKurikulum && excludeId && isValidUuid(excludeId)) {
+      rows = await sql`
+        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.kurikulum, mk.prodi_id, mk.is_active, p.nama as prodi_nama
+        FROM mata_kuliah mk
+        JOIN prodi p ON mk.prodi_id = p.id
+        WHERE UPPER(TRIM(mk.kode)) = ${cleanKode}
+          AND mk.kurikulum = ${cleanKurikulum}
+          AND mk.id != ${excludeId}
+        LIMIT 1
+      `;
+    } else if (cleanKurikulum) {
+      rows = await sql`
+        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.kurikulum, mk.prodi_id, mk.is_active, p.nama as prodi_nama
+        FROM mata_kuliah mk
+        JOIN prodi p ON mk.prodi_id = p.id
+        WHERE UPPER(TRIM(mk.kode)) = ${cleanKode}
+          AND mk.kurikulum = ${cleanKurikulum}
+        LIMIT 1
+      `;
+    } else if (excludeId && isValidUuid(excludeId)) {
+      rows = await sql`
+        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.kurikulum, mk.prodi_id, mk.is_active, p.nama as prodi_nama
+        FROM mata_kuliah mk
+        JOIN prodi p ON mk.prodi_id = p.id
+        WHERE UPPER(TRIM(mk.kode)) = ${cleanKode}
+          AND mk.id != ${excludeId}
+        LIMIT 1
+      `;
+    } else {
+      rows = await sql`
+        SELECT mk.id, mk.kode, mk.nama, mk.sks, mk.semester, mk.kurikulum, mk.prodi_id, mk.is_active, p.nama as prodi_nama
+        FROM mata_kuliah mk
+        JOIN prodi p ON mk.prodi_id = p.id
+        WHERE UPPER(TRIM(mk.kode)) = ${cleanKode}
+        LIMIT 1
+      `;
+    }
+    return (rows[0] as MataKuliah) || null;
+  } catch (error) {
+    console.error('findMataKuliahByKodeAndKurikulum error:', error);
+    return null;
+  }
+}
+
 export async function createMataKuliah(data: {
   kode: string;
   nama: string;
@@ -1226,13 +1293,20 @@ export async function createMataKuliah(data: {
   prodi_id: string;
 }): Promise<MataKuliah> {
   const sql = getDbClient();
+  const cleanKode = data.kode.trim().toUpperCase();
   const kurikulumVal = (data.kurikulum && data.kurikulum.trim()) || '2024';
+
+  // Check if subject number / code already exists on the same curriculum
+  const duplicate = await findMataKuliahByKodeAndKurikulum(cleanKode, kurikulumVal);
+  if (duplicate) {
+    throw new Error(`Mata kuliah dengan nomor/kode "${cleanKode}" sudah terdaftar pada Kurikulum ${kurikulumVal}. Sistem menolak kode mata kuliah yang sama pada kurikulum yang sama.`);
+  }
 
   if (!sql) {
     const prodi = mockProdis.find(p => p.id === data.prodi_id);
     const newMk: MataKuliah = {
       id: `mk-${Date.now()}`,
-      kode: data.kode.trim().toUpperCase(),
+      kode: cleanKode,
       nama: data.nama.trim(),
       sks: Number(data.sks) || 3,
       semester: Number(data.semester) || 1,
@@ -1250,7 +1324,7 @@ export async function createMataKuliah(data: {
   try {
     const rows = await sql`
       INSERT INTO mata_kuliah (kode, nama, sks, semester, kurikulum, prodi_id)
-      VALUES (${data.kode.trim().toUpperCase()}, ${data.nama.trim()}, ${Number(data.sks) || 3}, ${Number(data.semester) || 1}, ${kurikulumVal}, ${data.prodi_id})
+      VALUES (${cleanKode}, ${data.nama.trim()}, ${Number(data.sks) || 3}, ${Number(data.semester) || 1}, ${kurikulumVal}, ${data.prodi_id})
       RETURNING id, kode, nama, sks, semester, kurikulum, prodi_id, is_active, created_at, updated_at
     `;
     const prodi = await sql`SELECT nama FROM prodi WHERE id = ${data.prodi_id}`;
@@ -1258,7 +1332,10 @@ export async function createMataKuliah(data: {
       ...rows[0],
       prodi_nama: prodi[0]?.nama || ''
     } as MataKuliah;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message?.includes('duplicate key') || error?.message?.includes('uq_mata_kuliah')) {
+      throw new Error(`Mata kuliah dengan nomor/kode "${cleanKode}" sudah terdaftar pada Kurikulum ${kurikulumVal}. Sistem menolak kode mata kuliah yang sama pada kurikulum yang sama.`);
+    }
     console.error('createMataKuliah error:', error);
     throw error;
   }
@@ -1266,6 +1343,17 @@ export async function createMataKuliah(data: {
 
 export async function updateMataKuliah(id: string, data: Partial<MataKuliah>): Promise<MataKuliah | null> {
   const sql = getDbClient();
+  const currentMk = await getMataKuliahById(id);
+  const targetKode = (data.kode?.trim().toUpperCase()) || currentMk?.kode;
+  const targetKurikulum = (data.kurikulum?.trim()) || currentMk?.kurikulum || '2024';
+
+  if (targetKode && targetKurikulum) {
+    const duplicate = await findMataKuliahByKodeAndKurikulum(targetKode, targetKurikulum, id);
+    if (duplicate) {
+      throw new Error(`Mata kuliah dengan nomor/kode "${targetKode}" sudah terdaftar pada Kurikulum ${targetKurikulum}. Sistem menolak kode mata kuliah yang sama pada kurikulum yang sama.`);
+    }
+  }
+
   if (!sql || !isValidUuid(id)) {
     const index = mockMataKuliah.findIndex(m => m.id === id);
     if (index >= 0) {
@@ -1295,7 +1383,10 @@ export async function updateMataKuliah(id: string, data: Partial<MataKuliah>): P
       ...rows[0],
       prodi_nama: prodi[0]?.nama || ''
     } as MataKuliah;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message?.includes('duplicate key') || error?.message?.includes('uq_mata_kuliah')) {
+      throw new Error(`Mata kuliah dengan nomor/kode "${targetKode}" sudah terdaftar pada Kurikulum ${targetKurikulum}. Sistem menolak kode mata kuliah yang sama pada kurikulum yang sama.`);
+    }
     console.error('updateMataKuliah error:', error);
     throw error;
   }
