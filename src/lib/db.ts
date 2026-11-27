@@ -1814,7 +1814,7 @@ export async function getMonevDailyLogs(filter?: { dosen_id?: string; tanggal?: 
 
     return rows.map(r => ({
       ...r,
-      tanggal: formatDateForDb(r.tanggal),
+      tanggal: formatDateForClient(r.tanggal),
       created_at: r.created_at ? new Date(r.created_at).toISOString() : undefined,
       updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
     })) as MonevDailyLogItem[];
@@ -1842,7 +1842,7 @@ export async function getMonevDailyLogById(id: string): Promise<MonevDailyLogIte
     const r = rows[0];
     return {
       ...r,
-      tanggal: formatDateForDb(r.tanggal),
+      tanggal: formatDateForClient(r.tanggal),
       created_at: r.created_at ? new Date(r.created_at).toISOString() : undefined,
       updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
     } as MonevDailyLogItem;
@@ -1902,7 +1902,7 @@ export async function createMonevDailyLog(data: {
       ...r,
       dosen_nama: dosen?.nama,
       dosen_nik: dosen?.nik,
-      tanggal: formatDateForDb(r.tanggal),
+      tanggal: formatDateForClient(r.tanggal),
       created_at: r.created_at ? new Date(r.created_at).toISOString() : undefined,
       updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
     } as MonevDailyLogItem;
@@ -1917,7 +1917,9 @@ export async function updateMonevDailyLog(
   data: Partial<MonevDailyLogItem>
 ): Promise<MonevDailyLogItem | null> {
   const sql = getDbClient();
-  const safeTanggal = data.tanggal ? formatDateForDb(data.tanggal) : undefined;
+  const safeTanggal = data.tanggal
+    ? formatDateForDb(data.tanggal, new Date().toISOString().split('T')[0])
+    : undefined;
 
   if (!sql || !isValidUuid(id)) {
     const index = mockMonevDailyLogs.findIndex(l => l.id === id);
