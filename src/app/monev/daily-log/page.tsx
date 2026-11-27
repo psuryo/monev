@@ -23,6 +23,14 @@ import { Navbar } from '@/components/Navbar';
 import { MonevDailyLogItem } from '@/types/monev';
 import { isMonev, isAdmin } from '@/lib/permissions';
 
+const getTodayDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function MonevDailyLogPage() {
   const { data: session, status } = useSession();
   const [logs, setLogs] = useState<MonevDailyLogItem[]>([]);
@@ -37,7 +45,7 @@ export default function MonevDailyLogPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    tanggal: new Date().toISOString().split('T')[0],
+    tanggal: getTodayDateString(),
     kegiatan: '',
     deskripsi: '',
     kendala: '',
@@ -73,7 +81,7 @@ export default function MonevDailyLogPage() {
   const handleOpenCreateModal = () => {
     setEditingLog(null);
     setFormData({
-      tanggal: new Date().toISOString().split('T')[0],
+      tanggal: getTodayDateString(),
       kegiatan: '',
       deskripsi: '',
       kendala: '',
@@ -86,7 +94,7 @@ export default function MonevDailyLogPage() {
   const handleOpenEditModal = (log: MonevDailyLogItem) => {
     setEditingLog(log);
     setFormData({
-      tanggal: log.tanggal || new Date().toISOString().split('T')[0],
+      tanggal: log.tanggal || getTodayDateString(),
       kegiatan: log.kegiatan || '',
       deskripsi: log.deskripsi || '',
       kendala: log.kendala || '',
